@@ -1,0 +1,257 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light Theme - Clean, elegant, British-inspired */
+    --background: 0 0% 98%;
+    --foreground: 150 25% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 150 25% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 150 25% 12%;
+
+    /* Elegant dark green primary */
+    --primary: 156 35% 22%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 150 10% 94%;
+    --secondary-foreground: 150 25% 20%;
+
+    --muted: 150 8% 92%;
+    --muted-foreground: 150 12% 45%;
+
+    --accent: 156 25% 90%;
+    --accent-foreground: 156 35% 18%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 150 12% 88%;
+    --input: 150 12% 88%;
+    --ring: 156 35% 22%;
+
+    --radius: 0.625rem;
+
+    /* Custom tokens */
+    --success: 156 45% 40%;
+    --success-foreground: 0 0% 98%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 12%;
+    --info: 210 100% 50%;
+    --info-foreground: 0 0% 98%;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(150 25% 12% / 0.03);
+    --shadow-md: 0 4px 6px -1px hsl(150 25% 12% / 0.05), 0 2px 4px -2px hsl(150 25% 12% / 0.03);
+    --shadow-lg: 0 10px 15px -3px hsl(150 25% 12% / 0.06), 0 4px 6px -4px hsl(150 25% 12% / 0.03);
+    --shadow-xl: 0 20px 25px -5px hsl(150 25% 12% / 0.08), 0 8px 10px -6px hsl(150 25% 12% / 0.03);
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 150 25% 12%;
+    --sidebar-primary: 156 35% 22%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 156 25% 92%;
+    --sidebar-accent-foreground: 156 35% 18%;
+    --sidebar-border: 150 12% 90%;
+    --sidebar-ring: 156 35% 22%;
+
+    /* Chart colors */
+    --chart-1: 156 45% 35%;
+    --chart-2: 156 35% 45%;
+    --chart-3: 156 25% 55%;
+    --chart-4: 156 15% 65%;
+    --chart-5: 156 10% 75%;
+  }
+
+  .dark {
+    /* Dark Theme - Sophisticated dark green elegance */
+    --background: 160 20% 6%;
+    --foreground: 150 15% 92%;
+
+    --card: 160 18% 9%;
+    --card-foreground: 150 15% 92%;
+
+    --popover: 160 18% 9%;
+    --popover-foreground: 150 15% 92%;
+
+    /* Elegant green primary for dark mode */
+    --primary: 156 40% 45%;
+    --primary-foreground: 160 20% 6%;
+
+    --secondary: 160 15% 14%;
+    --secondary-foreground: 150 15% 85%;
+
+    --muted: 160 12% 16%;
+    --muted-foreground: 150 10% 55%;
+
+    --accent: 156 30% 18%;
+    --accent-foreground: 156 40% 65%;
+
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 160 12% 16%;
+    --input: 160 12% 18%;
+    --ring: 156 40% 45%;
+
+    /* Custom tokens */
+    --success: 156 50% 45%;
+    --success-foreground: 160 20% 6%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 6%;
+    --info: 210 100% 60%;
+    --info-foreground: 0 0% 6%;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.2);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.25), 0 2px 4px -2px hsl(0 0% 0% / 0.15);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.3), 0 4px 6px -4px hsl(0 0% 0% / 0.15);
+    --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.35), 0 8px 10px -6px hsl(0 0% 0% / 0.15);
+
+    /* Sidebar */
+    --sidebar-background: 160 18% 8%;
+    --sidebar-foreground: 150 15% 90%;
+    --sidebar-primary: 156 40% 45%;
+    --sidebar-primary-foreground: 160 20% 6%;
+    --sidebar-accent: 156 25% 16%;
+    --sidebar-accent-foreground: 156 40% 65%;
+    --sidebar-border: 160 12% 14%;
+    --sidebar-ring: 156 40% 45%;
+
+    /* Chart colors */
+    --chart-1: 156 50% 50%;
+    --chart-2: 156 40% 60%;
+    --chart-3: 156 30% 45%;
+    --chart-4: 156 20% 55%;
+    --chart-5: 156 15% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply bg-background text-foreground font-outfit;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50;
+  }
+
+  .glass-hover {
+    @apply hover:bg-card/90 transition-colors duration-200;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent;
+  }
+
+  .animate-fade-up {
+    animation: fade-up 0.5s ease-out forwards;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out forwards;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.2s ease-out forwards;
+  }
+
+  .animate-slide-in-right {
+    animation: slide-in-right 0.3s ease-out forwards;
+  }
+
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5;
+  }
+
+  .nav-item {
+    @apply relative px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200;
+  }
+
+  .nav-item-active {
+    @apply bg-primary/10 text-primary;
+  }
+
+  .nav-item-inactive {
+    @apply text-muted-foreground hover:text-foreground hover:bg-muted/50;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-border rounded-full hover:bg-muted-foreground/30 transition-colors;
+}
+
+/* Custom focus styles */
+*:focus-visible {
+  @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+}
