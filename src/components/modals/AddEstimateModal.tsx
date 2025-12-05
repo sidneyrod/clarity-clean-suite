@@ -13,6 +13,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { DollarSign, Calculator } from 'lucide-react';
 import { Estimate } from '@/stores/estimateStore';
+import { estimateSchema, validateForm } from '@/lib/validations';
 
 interface AddEstimateModalProps {
   open: boolean;
@@ -25,6 +26,7 @@ const AddEstimateModal = ({ open, onOpenChange, onSave, estimate }: AddEstimateM
   const { t } = useLanguage();
   const { estimateConfig: settings } = useCompanyStore();
   const isEditing = !!estimate;
+  const [errors, setErrors] = useState<Record<string, string>>({});
   
   const [formData, setFormData] = useState({
     clientName: estimate?.clientName || '',
@@ -95,6 +97,27 @@ const AddEstimateModal = ({ open, onOpenChange, onSave, estimate }: AddEstimateM
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form data
+    const validationData = {
+      clientName: formData.clientName,
+      clientEmail: formData.clientEmail,
+      clientPhone: formData.clientPhone,
+      serviceType: formData.serviceType,
+      frequency: formData.frequency === 'biweekly' ? 'biweekly' : formData.frequency,
+      squareFootage: formData.squareFootage,
+      bedrooms: formData.bedrooms,
+      bathrooms: formData.bathrooms,
+      hourlyRate: settings.defaultHourlyRate,
+    };
+
+    const result = validateForm(estimateSchema, validationData);
+    if ('errors' in result && !result.success) {
+      setErrors(result.errors);
+      return;
+    }
+
+    setErrors({});
     onSave({
       ...formData,
       hourlyRate: settings.defaultHourlyRate,
@@ -116,31 +139,39 @@ const AddEstimateModal = ({ open, onOpenChange, onSave, estimate }: AddEstimateM
         <form onSubmit={handleSubmit} className="space-y-6 mt-4">
           {/* Client Information */}
           <div className="space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground">Client Information</h3>
+            <h3 className="text-sm font-medium text-muted-foreground">{t.calculator.clientInfo}</h3>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>{t.calculator.clientName}</Label>
                 <Input
                   value={formData.clientName}
-                  onChange={(e) => setFormData(prev => ({ ...prev, clientName: e.target.value }))}
-                  required
+                  onChange={(e) => { setFormData(prev => ({ ...prev, clientName: e.target.value })); setErrors(prev => ({ ...prev, clientName: '' })); }}
+                  maxLength={100}
+                  className={errors.clientName ? 'border-destructive' : ''}
                 />
+                {errors.clientName && <p className="text-sm text-destructive">{errors.clientName}</p>}
               </div>
               <div className="space-y-2">
-                <Label>Email</Label>
+                <Label>{t.calculator.email}</Label>
                 <Input
                   type="email"
                   value={formData.clientEmail}
-                  onChange={(e) => setFormData(prev => ({ ...prev, clientEmail: e.target.value }))}
+                  onChange={(e) => { setFormData(prev => ({ ...prev, clientEmail: e.target.value })); setErrors(prev => ({ ...prev, clientEmail: '' })); }}
+                  maxLength={255}
+                  className={errors.clientEmail ? 'border-destructive' : ''}
                 />
+                {errors.clientEmail && <p className="text-sm text-destructive">{errors.clientEmail}</p>}
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Phone</Label>
+              <Label>{t.calculator.phone}</Label>
               <Input
                 value={formData.clientPhone}
-                onChange={(e) => setFormData(prev => ({ ...prev, clientPhone: e.target.value }))}
+                onChange={(e) => { setFormData(prev => ({ ...prev, clientPhone: e.target.value })); setErrors(prev => ({ ...prev, clientPhone: '' })); }}
+                maxLength={20}
+                className={errors.clientPhone ? 'border-destructive' : ''}
               />
+              {errors.clientPhone && <p className="text-sm text-destructive">{errors.clientPhone}</p>}
             </div>
           </div>
           
@@ -227,7 +258,7 @@ const AddEstimateModal = ({ open, onOpenChange, onSave, estimate }: AddEstimateM
           
           {/* Service Options */}
           <div className="space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground">Service Options</h3>
+            <h3 className="text-sm font-medium text-muted-foreground">{t.calculator.serviceOptions}</h3>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>{t.calculator.serviceType}</Label>
@@ -356,12 +387,13 @@ const AddEstimateModal = ({ open, onOpenChange, onSave, estimate }: AddEstimateM
           </div>
           
           <div className="space-y-2">
-            <Label>Notes</Label>
+            <Label>{t.common.notes}</Label>
             <Textarea
               value={formData.notes}
               onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-              placeholder="Additional notes..."
+              placeholder={t.calculator.notesPlaceholder}
               rows={2}
+              maxLength={1000}
             />
           </div>
           

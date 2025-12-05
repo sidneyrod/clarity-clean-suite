@@ -10,6 +10,7 @@ import { CalendarIcon, CalendarOff } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
+import { absenceRequestSchema, validateForm } from '@/lib/validations';
 
 interface AbsenceRequestModalProps {
   open: boolean;
@@ -23,19 +24,33 @@ const AbsenceRequestModal = ({ open, onOpenChange, onSubmit, employeeName }: Abs
   
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [reason, setReason] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (dateRange?.from && dateRange?.to) {
-      onSubmit({
-        startDate: format(dateRange.from, 'yyyy-MM-dd'),
-        endDate: format(dateRange.to, 'yyyy-MM-dd'),
-        reason,
-      });
-      onOpenChange(false);
-      setDateRange(undefined);
-      setReason('');
+    
+    // Validate form data
+    const validationData = {
+      startDate: dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : '',
+      endDate: dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : '',
+      reason: reason.trim(),
+    };
+
+    const result = validateForm(absenceRequestSchema, validationData);
+    if ('errors' in result && !result.success) {
+      setErrors(result.errors);
+      return;
     }
+
+    setErrors({});
+    onSubmit({
+      startDate: format(dateRange!.from!, 'yyyy-MM-dd'),
+      endDate: format(dateRange!.to!, 'yyyy-MM-dd'),
+      reason,
+    });
+    onOpenChange(false);
+    setDateRange(undefined);
+    setReason('');
   };
 
   const daysDiff = dateRange?.from && dateRange?.to 
@@ -109,11 +124,13 @@ const AbsenceRequestModal = ({ open, onOpenChange, onSubmit, employeeName }: Abs
             <Label>{t.schedule.reason}</Label>
             <Textarea
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              onChange={(e) => { setReason(e.target.value); setErrors(prev => ({ ...prev, reason: '' })); }}
               placeholder={t.schedule.reasonPlaceholder}
               rows={3}
-              required
+              maxLength={500}
+              className={errors.reason ? 'border-destructive' : ''}
             />
+            {errors.reason && <p className="text-sm text-destructive">{errors.reason}</p>}
           </div>
           
           <DialogFooter className="pt-4">
