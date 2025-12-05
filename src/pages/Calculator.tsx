@@ -2,245 +2,289 @@ import { useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import PageHeader from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
+import { Badge } from '@/components/ui/badge';
+import DataTable, { Column } from '@/components/ui/data-table';
+import StatusBadge from '@/components/ui/status-badge';
 import { 
   Calculator as CalcIcon, 
-  DollarSign, 
-  Clock, 
-  TrendingUp, 
-  Users,
-  Sparkles,
-  ArrowRight
+  Plus,
+  Edit,
+  Trash2,
+  FileText,
+  Send,
+  DollarSign
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { useEstimateStore, Estimate } from '@/stores/estimateStore';
+import { logActivity } from '@/stores/activityStore';
+import AddEstimateModal from '@/components/modals/AddEstimateModal';
+import ConfirmDialog from '@/components/modals/ConfirmDialog';
+import { useCompanyStore } from '@/stores/companyStore';
+import { generateEstimatePdf, openPdfPreview } from '@/utils/pdfGenerator';
+import { format, addDays } from 'date-fns';
 
 const Calculator = () => {
   const { t } = useLanguage();
-  const [sqft, setSqft] = useState(1500);
-  const [serviceType, setServiceType] = useState('standard');
-  const [frequency, setFrequency] = useState('weekly');
-  const [employees, setEmployees] = useState(1);
-  const [calculated, setCalculated] = useState(false);
+  const { estimates, addEstimate, updateEstimate, deleteEstimate } = useEstimateStore();
+  const { profile, branding } = useCompanyStore();
+  
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
+  const [estimateToDelete, setEstimateToDelete] = useState<Estimate | null>(null);
 
-  // Calculation logic
-  const baseRate = 0.08; // per sqft
-  const serviceMultipliers: Record<string, number> = {
-    standard: 1,
-    deep: 1.5,
-    moveOut: 2,
-    commercial: 1.3,
-  };
-  const frequencyDiscounts: Record<string, number> = {
-    oneTime: 1,
-    monthly: 0.95,
-    biweekly: 0.9,
-    weekly: 0.85,
+  const statusConfig: Record<string, { label: string; variant: 'active' | 'pending' | 'completed' | 'inactive' }> = {
+    draft: { label: 'Draft', variant: 'pending' },
+    sent: { label: 'Sent', variant: 'active' },
+    accepted: { label: 'Accepted', variant: 'completed' },
+    rejected: { label: 'Rejected', variant: 'inactive' },
   };
 
-  const price = Math.round(sqft * baseRate * serviceMultipliers[serviceType] * frequencyDiscounts[frequency]);
-  const cost = Math.round(price * 0.45);
-  const profit = price - cost;
-  const margin = Math.round((profit / price) * 100);
-  const estimatedTime = Math.round((sqft / 500) * serviceMultipliers[serviceType] * 10) / 10;
-
-  const handleCalculate = () => {
-    setCalculated(true);
+  const serviceTypeLabels: Record<string, string> = {
+    standard: 'Standard Clean',
+    deep: 'Deep Clean',
+    moveOut: 'Move-out Clean',
+    commercial: 'Commercial Clean',
   };
+
+  const frequencyLabels: Record<string, string> = {
+    oneTime: 'One-time',
+    monthly: 'Monthly',
+    biweekly: 'Bi-weekly',
+    weekly: 'Weekly',
+  };
+
+  const handleAddEstimate = (estimate: Omit<Estimate, 'id' | 'createdAt'>) => {
+    addEstimate(estimate);
+    logActivity('estimate_created', `Estimate created for ${estimate.clientName}`, undefined, estimate.clientName);
+    toast.success(t.calculator.estimateCreated);
+  };
+
+  const handleUpdateEstimate = (estimate: Omit<Estimate, 'id' | 'createdAt'>) => {
+    if (editingEstimate) {
+      updateEstimate(editingEstimate.id, estimate);
+      logActivity('estimate_updated', `Estimate updated for ${estimate.clientName}`, editingEstimate.id, estimate.clientName);
+      toast.success(t.calculator.estimateUpdated);
+      setEditingEstimate(null);
+    }
+  };
+
+  const handleDeleteEstimate = () => {
+    if (estimateToDelete) {
+      deleteEstimate(estimateToDelete.id);
+      logActivity('estimate_deleted', `Estimate deleted for ${estimateToDelete.clientName}`, estimateToDelete.id, estimateToDelete.clientName);
+      toast.success(t.calculator.estimateDeleted);
+      setEstimateToDelete(null);
+    }
+  };
+
+  const handleViewPdf = (estimate: Estimate) => {
+    const extras: string[] = [];
+    if (estimate.includePets) extras.push('Pets Fee');
+    if (estimate.includeChildren) extras.push('Children Fee');
+    if (estimate.includeGreen) extras.push('Green Cleaning');
+    if (estimate.includeFridge) extras.push('Clean Fridge');
+    if (estimate.includeOven) extras.push('Clean Oven');
+    if (estimate.includeCabinets) extras.push('Clean Cabinets');
+    if (estimate.includeWindows) extras.push('Clean Windows');
+
+    const pdfHtml = generateEstimatePdf({
+      estimateId: estimate.id.slice(0, 8).toUpperCase(),
+      clientName: estimate.clientName,
+      clientEmail: estimate.clientEmail,
+      clientPhone: estimate.clientPhone,
+      serviceType: serviceTypeLabels[estimate.serviceType],
+      frequency: frequencyLabels[estimate.frequency],
+      squareFootage: estimate.squareFootage,
+      roomDetails: `${estimate.bedrooms} bed, ${estimate.bathrooms} bath`,
+      extras,
+      totalAmount: estimate.totalAmount,
+      validUntil: format(addDays(new Date(estimate.createdAt), 30), 'PPP'),
+    }, profile, branding);
+
+    openPdfPreview(pdfHtml, `Estimate-${estimate.clientName}`);
+  };
+
+  const handleSendEstimate = (estimate: Estimate) => {
+    updateEstimate(estimate.id, { status: 'sent' });
+    logActivity('estimate_sent', `Estimate sent to ${estimate.clientName}`, estimate.id, estimate.clientName);
+    toast.success(`Estimate sent to ${estimate.clientName}`);
+  };
+
+  const columns: Column<Estimate>[] = [
+    {
+      key: 'clientName',
+      header: t.calculator.clientName,
+      render: (estimate) => (
+        <div>
+          <p className="font-medium">{estimate.clientName}</p>
+          {estimate.clientEmail && (
+            <p className="text-xs text-muted-foreground">{estimate.clientEmail}</p>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'serviceType',
+      header: t.calculator.serviceType,
+      render: (estimate) => (
+        <Badge variant="secondary">
+          {serviceTypeLabels[estimate.serviceType]}
+        </Badge>
+      ),
+    },
+    {
+      key: 'frequency',
+      header: t.calculator.frequency,
+      render: (estimate) => frequencyLabels[estimate.frequency],
+    },
+    {
+      key: 'squareFootage',
+      header: 'Size',
+      render: (estimate) => `${estimate.squareFootage.toLocaleString()} sq ft`,
+    },
+    {
+      key: 'totalAmount',
+      header: t.calculator.totalEstimate,
+      render: (estimate) => (
+        <span className="font-semibold text-primary">${estimate.totalAmount}</span>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (estimate) => (
+        <StatusBadge
+          status={statusConfig[estimate.status].variant}
+          label={statusConfig[estimate.status].label}
+        />
+      ),
+    },
+    {
+      key: 'actions',
+      header: t.common.actions,
+      render: (estimate) => (
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleViewPdf(estimate); }}>
+            <FileText className="h-4 w-4" />
+          </Button>
+          {estimate.status === 'draft' && (
+            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleSendEstimate(estimate); }}>
+              <Send className="h-4 w-4" />
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setEditingEstimate(estimate); }}>
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setEstimateToDelete(estimate); }}>
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  // Summary stats
+  const totalEstimates = estimates.length;
+  const pendingEstimates = estimates.filter(e => e.status === 'sent').length;
+  const acceptedValue = estimates.filter(e => e.status === 'accepted').reduce((sum, e) => sum + e.totalAmount, 0);
 
   return (
     <div className="container px-4 py-8 lg:px-8 space-y-8">
       <PageHeader 
         title={t.calculator.title}
-        description="Calculate service pricing, costs, and profit margins"
+        description="Create and manage service estimates for clients"
+        action={{
+          label: t.calculator.addEstimate,
+          icon: Plus,
+          onClick: () => setShowAddModal(true),
+        }}
       />
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        {/* Parameters */}
+      {/* Summary Cards */}
+      <div className="grid gap-4 sm:grid-cols-3">
         <Card className="border-border/50">
-          <CardHeader>
-            <CardTitle className="text-base font-medium flex items-center gap-2">
-              <CalcIcon className="h-4 w-4 text-primary" />
-              {t.calculator.parameters}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Square Footage */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label>{t.calculator.squareFootage}</Label>
-                <span className="text-sm font-medium text-primary">{sqft.toLocaleString()} sq ft</span>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <CalcIcon className="h-6 w-6 text-primary" />
               </div>
-              <Slider
-                value={[sqft]}
-                onValueChange={(v) => setSqft(v[0])}
-                min={500}
-                max={10000}
-                step={100}
-                className="py-2"
-              />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>500 sq ft</span>
-                <span>10,000 sq ft</span>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Estimates</p>
+                <p className="text-2xl font-bold">{totalEstimates}</p>
               </div>
             </div>
-
-            {/* Service Type */}
-            <div className="space-y-2">
-              <Label>{t.calculator.serviceType}</Label>
-              <Select value={serviceType} onValueChange={setServiceType}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="standard">Standard Clean</SelectItem>
-                  <SelectItem value="deep">Deep Clean</SelectItem>
-                  <SelectItem value="moveOut">Move-out Clean</SelectItem>
-                  <SelectItem value="commercial">Commercial Clean</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Frequency */}
-            <div className="space-y-2">
-              <Label>{t.calculator.frequency}</Label>
-              <Select value={frequency} onValueChange={setFrequency}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="oneTime">One-time</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                  <SelectItem value="biweekly">Bi-weekly</SelectItem>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Employees */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label>{t.calculator.employees}</Label>
-                <span className="text-sm font-medium text-primary">{employees}</span>
-              </div>
-              <Slider
-                value={[employees]}
-                onValueChange={(v) => setEmployees(v[0])}
-                min={1}
-                max={5}
-                step={1}
-                className="py-2"
-              />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>1 person</span>
-                <span>5 people</span>
-              </div>
-            </div>
-
-            <Button onClick={handleCalculate} className="w-full gap-2" size="lg">
-              <Sparkles className="h-4 w-4" />
-              {t.calculator.simulate}
-            </Button>
           </CardContent>
         </Card>
 
-        {/* Results */}
-        <div className="space-y-6">
-          <Card className={cn(
-            "border-border/50 transition-all duration-500",
-            calculated && "border-primary/30 shadow-soft-lg"
-          )}>
-            <CardHeader>
-              <CardTitle className="text-base font-medium flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-primary" />
-                {t.calculator.results}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Price */}
-              <div className="flex items-center justify-between p-4 rounded-xl bg-primary/10">
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center">
-                    <DollarSign className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">{t.calculator.servicePrice}</p>
-                    <p className="text-3xl font-bold text-primary">${price}</p>
-                  </div>
-                </div>
+        <Card className="border-border/50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-warning/10 flex items-center justify-center">
+                <Send className="h-6 w-6 text-warning" />
               </div>
-
-              {/* Stats Grid */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="p-4 rounded-xl bg-muted/50">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-warning/10 flex items-center justify-center">
-                      <DollarSign className="h-5 w-5 text-warning" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">{t.calculator.estimatedCost}</p>
-                      <p className="text-xl font-semibold">${cost}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-xl bg-muted/50">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-info/10 flex items-center justify-center">
-                      <Clock className="h-5 w-5 text-info" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">{t.calculator.estimatedTime}</p>
-                      <p className="text-xl font-semibold">{estimatedTime}h</p>
-                    </div>
-                  </div>
-                </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Pending Response</p>
+                <p className="text-2xl font-bold">{pendingEstimates}</p>
               </div>
+            </div>
+          </CardContent>
+        </Card>
 
-              {/* Profit Margin */}
-              <div className="p-4 rounded-xl bg-success/10 border border-success/20">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-success/20 flex items-center justify-center">
-                      <TrendingUp className="h-5 w-5 text-success" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-success/80">{t.calculator.profitMargin}</p>
-                      <p className="text-2xl font-bold text-success">{margin}%</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-success/80">Profit</p>
-                    <p className="text-xl font-semibold text-success">${profit}</p>
-                  </div>
-                </div>
+        <Card className="border-border/50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-success/10 flex items-center justify-center">
+                <DollarSign className="h-6 w-6 text-success" />
               </div>
-
-              {/* Summary */}
-              <div className="flex items-center justify-between p-4 rounded-xl bg-muted/30 text-sm">
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">{employees} employee(s)</span>
-                </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">${Math.round(profit / employees)} profit/person</span>
+              <div>
+                <p className="text-sm text-muted-foreground">Accepted Value</p>
+                <p className="text-2xl font-bold">${acceptedValue.toLocaleString()}</p>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Quick Tips */}
-          <Card className="border-border/50 bg-muted/30">
-            <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">
-                💡 <span className="font-medium">Tip:</span> Weekly recurring clients provide 15% discount but generate 4x monthly revenue with higher retention rates.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Estimates Table */}
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-base font-medium flex items-center gap-2">
+            <CalcIcon className="h-4 w-4 text-primary" />
+            All Estimates
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DataTable
+            columns={columns}
+            data={estimates}
+            emptyMessage={t.common.noData}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Add/Edit Modal */}
+      <AddEstimateModal
+        open={showAddModal || !!editingEstimate}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowAddModal(false);
+            setEditingEstimate(null);
+          }
+        }}
+        onSave={editingEstimate ? handleUpdateEstimate : handleAddEstimate}
+        estimate={editingEstimate || undefined}
+      />
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={!!estimateToDelete}
+        onOpenChange={() => setEstimateToDelete(null)}
+        onConfirm={handleDeleteEstimate}
+        title={t.common.confirmDelete}
+        description={`Are you sure you want to delete the estimate for ${estimateToDelete?.clientName}? This action cannot be undone.`}
+      />
     </div>
   );
 };
