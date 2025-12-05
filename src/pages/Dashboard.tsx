@@ -59,7 +59,7 @@ const Dashboard = () => {
       {/* Welcome Section */}
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">{t.dashboard.welcome}, John</h1>
-        <p className="text-muted-foreground">Here's what's happening with your business today.</p>
+        <p className="text-muted-foreground">{t.dashboard.subtitle}</p>
       </div>
 
       {/* Stats Grid */}

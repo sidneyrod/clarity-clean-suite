@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { contractSchema, validateForm } from '@/lib/validations';
 import { 
   FileText, 
   CalendarIcon, 
@@ -77,6 +78,7 @@ const AddContractModal = ({ open, onOpenChange, onSubmit, editContract, clients 
 
   const [formData, setFormData] = useState<ContractFormData>(editContract || initialFormData);
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (editContract) {
@@ -84,12 +86,33 @@ const AddContractModal = ({ open, onOpenChange, onSubmit, editContract, clients 
     } else {
       setFormData({ ...initialFormData, hourlyRate: estimateConfig.defaultHourlyRate });
     }
+    setErrors({});
   }, [editContract, estimateConfig.defaultHourlyRate, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    
+    // Validate form data
+    const validationData = {
+      clientId: formData.clientId,
+      status: formData.status,
+      type: formData.type,
+      startDate: formData.startDate ? format(formData.startDate, 'yyyy-MM-dd') : '',
+      endDate: formData.endDate ? format(formData.endDate, 'yyyy-MM-dd') : '',
+      hoursPerWeek: formData.hoursPerWeek,
+      hourlyRate: formData.hourlyRate,
+      billingFrequency: formData.billingFrequency === 'bi-weekly' ? 'biweekly' : formData.billingFrequency,
+      cleaningScope: formData.cleaningScope,
+      specialNotes: formData.specialNotes,
+    };
 
+    const result = validateForm(contractSchema, validationData);
+    if ('errors' in result && !result.success) {
+      setErrors(result.errors);
+      return;
+    }
+
+    setIsLoading(true);
     await new Promise(resolve => setTimeout(resolve, 500));
 
     onSubmit(formData);
@@ -98,6 +121,7 @@ const AddContractModal = ({ open, onOpenChange, onSubmit, editContract, clients 
       description: editContract ? t.contracts.contractUpdated : t.contracts.contractCreated,
     });
     setFormData(initialFormData);
+    setErrors({});
     onOpenChange(false);
     setIsLoading(false);
   };
@@ -132,9 +156,9 @@ const AddContractModal = ({ open, onOpenChange, onSubmit, editContract, clients 
               <Label>{t.contracts.client}</Label>
               <Select 
                 value={formData.clientId} 
-                onValueChange={(value) => updateField('clientId', value)}
+                onValueChange={(value) => { updateField('clientId', value); setErrors(prev => ({ ...prev, clientId: '' })); }}
               >
-                <SelectTrigger>
+                <SelectTrigger className={errors.clientId ? 'border-destructive' : ''}>
                   <SelectValue placeholder={t.contracts.selectClient} />
                 </SelectTrigger>
                 <SelectContent>
@@ -143,6 +167,7 @@ const AddContractModal = ({ open, onOpenChange, onSubmit, editContract, clients 
                   ))}
                 </SelectContent>
               </Select>
+              {errors.clientId && <p className="text-sm text-destructive">{errors.clientId}</p>}
             </div>
 
             <div className="space-y-2">

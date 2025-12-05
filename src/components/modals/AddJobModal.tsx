@@ -12,6 +12,7 @@ import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ScheduledJob } from '@/stores/scheduleStore';
+import { jobSchema, validateForm } from '@/lib/validations';
 
 interface AddJobModalProps {
   open: boolean;
@@ -37,6 +38,7 @@ const mockEmployees = [
 const AddJobModal = ({ open, onOpenChange, onSave, job }: AddJobModalProps) => {
   const { t } = useLanguage();
   const isEditing = !!job;
+  const [errors, setErrors] = useState<Record<string, string>>({});
   
   const [formData, setFormData] = useState({
     clientId: job?.clientId || '',
@@ -77,6 +79,25 @@ const AddJobModal = ({ open, onOpenChange, onSave, job }: AddJobModalProps) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form data
+    const validationData = {
+      clientId: formData.clientId,
+      employeeId: formData.employeeId,
+      date: format(formData.date, 'yyyy-MM-dd'),
+      time: formData.time,
+      duration: formData.duration,
+      services: formData.services,
+      notes: formData.notes,
+    };
+
+    const result = validateForm(jobSchema, validationData);
+    if ('errors' in result && !result.success) {
+      setErrors(result.errors);
+      return;
+    }
+
+    setErrors({});
     onSave({
       ...formData,
       date: format(formData.date, 'yyyy-MM-dd'),
@@ -94,8 +115,8 @@ const AddJobModal = ({ open, onOpenChange, onSave, job }: AddJobModalProps) => {
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="space-y-2">
             <Label>{t.job.client}</Label>
-            <Select value={formData.clientId} onValueChange={handleClientChange}>
-              <SelectTrigger>
+            <Select value={formData.clientId} onValueChange={(v) => { handleClientChange(v); setErrors(prev => ({ ...prev, clientId: '' })); }}>
+              <SelectTrigger className={errors.clientId ? 'border-destructive' : ''}>
                 <SelectValue placeholder={t.job.selectClient} />
               </SelectTrigger>
               <SelectContent>
@@ -104,6 +125,7 @@ const AddJobModal = ({ open, onOpenChange, onSave, job }: AddJobModalProps) => {
                 ))}
               </SelectContent>
             </Select>
+            {errors.clientId && <p className="text-sm text-destructive">{errors.clientId}</p>}
           </div>
           
           {formData.address && (
@@ -167,8 +189,8 @@ const AddJobModal = ({ open, onOpenChange, onSave, job }: AddJobModalProps) => {
             
             <div className="space-y-2">
               <Label>{t.job.assignedEmployee}</Label>
-              <Select value={formData.employeeId} onValueChange={handleEmployeeChange}>
-                <SelectTrigger>
+              <Select value={formData.employeeId} onValueChange={(v) => { handleEmployeeChange(v); setErrors(prev => ({ ...prev, employeeId: '' })); }}>
+                <SelectTrigger className={errors.employeeId ? 'border-destructive' : ''}>
                   <SelectValue placeholder={t.job.selectEmployee} />
                 </SelectTrigger>
                 <SelectContent>
@@ -177,6 +199,7 @@ const AddJobModal = ({ open, onOpenChange, onSave, job }: AddJobModalProps) => {
                   ))}
                 </SelectContent>
               </Select>
+              {errors.employeeId && <p className="text-sm text-destructive">{errors.employeeId}</p>}
             </div>
           </div>
           
