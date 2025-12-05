@@ -64,7 +64,7 @@ const MobileNavigation = () => {
           <SheetTrigger asChild>
             <Button variant="ghost" size="sm" className="flex flex-col items-center gap-1 h-auto py-2 px-3">
               <Menu className="h-5 w-5 text-muted-foreground" />
-              <span className="text-[10px] font-medium text-muted-foreground">More</span>
+              <span className="text-[10px] font-medium text-muted-foreground">{t.common.more}</span>
             </Button>
           </SheetTrigger>
           <SheetContent side="bottom" className="h-auto max-h-[70vh] rounded-t-2xl">

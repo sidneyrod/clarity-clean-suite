@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { Building, Home, User, Mail, Phone, MapPin } from 'lucide-react';
+import { clientSchema, validateForm } from '@/lib/validations';
 
 interface AddClientModalProps {
   open: boolean;
@@ -42,20 +43,38 @@ const initialFormData: ClientFormData = {
 
 const AddClientModal = ({ open, onOpenChange, onSubmit, editClient }: AddClientModalProps) => {
   const { t } = useLanguage();
-  const [formData, setFormData] = useState<ClientFormData>(editClient || initialFormData);
+  const [formData, setFormData] = useState<ClientFormData>(initialFormData);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+
+  // Reset form when modal opens/closes or editClient changes
+  useEffect(() => {
+    if (open) {
+      setFormData(editClient || initialFormData);
+      setErrors({});
+    }
+  }, [open, editClient]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form data
+    const validation = validateForm(clientSchema, formData);
+    
+    if (!validation.success) {
+      const validationErrors = (validation as { success: false; errors: Record<string, string> }).errors;
+      setErrors(validationErrors);
+      toast.error(t.common.error, { description: Object.values(validationErrors)[0] });
+      return;
+    }
+    
+    setErrors({});
     setIsLoading(true);
 
     await new Promise(resolve => setTimeout(resolve, 500));
 
     onSubmit(formData);
-    toast({
-      title: t.common.success,
-      description: editClient ? t.clients.clientUpdated : t.clients.clientCreated,
-    });
+    toast.success(editClient ? t.clients.clientUpdated : t.clients.clientCreated);
     setFormData(initialFormData);
     onOpenChange(false);
     setIsLoading(false);
@@ -63,6 +82,10 @@ const AddClientModal = ({ open, onOpenChange, onSubmit, editClient }: AddClientM
 
   const updateField = (field: keyof ClientFormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear error for this field when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
   };
 
   return (
@@ -87,9 +110,11 @@ const AddClientModal = ({ open, onOpenChange, onSubmit, editClient }: AddClientM
                 id="name"
                 value={formData.name}
                 onChange={(e) => updateField('name', e.target.value)}
-                placeholder="Client name"
-                required
+                placeholder={t.clients.name}
+                className={errors.name ? 'border-destructive' : ''}
+                maxLength={100}
               />
+              {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
             </div>
 
             <div className="space-y-2">
@@ -129,8 +154,10 @@ const AddClientModal = ({ open, onOpenChange, onSubmit, editClient }: AddClientM
               value={formData.address}
               onChange={(e) => updateField('address', e.target.value)}
               placeholder="123 Main Street, Toronto, ON"
-              required
+              className={errors.address ? 'border-destructive' : ''}
+              maxLength={255}
             />
+            {errors.address && <p className="text-xs text-destructive">{errors.address}</p>}
           </div>
 
           <div className="space-y-2">
@@ -142,7 +169,8 @@ const AddClientModal = ({ open, onOpenChange, onSubmit, editClient }: AddClientM
               id="contact"
               value={formData.contactPerson}
               onChange={(e) => updateField('contactPerson', e.target.value)}
-              placeholder="Contact person name"
+              placeholder={t.clients.companyContact}
+              maxLength={100}
             />
           </div>
 
@@ -158,8 +186,10 @@ const AddClientModal = ({ open, onOpenChange, onSubmit, editClient }: AddClientM
                 value={formData.phone}
                 onChange={(e) => updateField('phone', e.target.value)}
                 placeholder="(416) 555-0100"
-                required
+                className={errors.phone ? 'border-destructive' : ''}
+                maxLength={20}
               />
+              {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
             </div>
 
             <div className="space-y-2">
@@ -173,8 +203,10 @@ const AddClientModal = ({ open, onOpenChange, onSubmit, editClient }: AddClientM
                 value={formData.email}
                 onChange={(e) => updateField('email', e.target.value)}
                 placeholder="contact@client.com"
-                required
+                className={errors.email ? 'border-destructive' : ''}
+                maxLength={255}
               />
+              {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
             </div>
           </div>
 
@@ -184,8 +216,9 @@ const AddClientModal = ({ open, onOpenChange, onSubmit, editClient }: AddClientM
               id="notes"
               value={formData.notes}
               onChange={(e) => updateField('notes', e.target.value)}
-              placeholder="Additional notes about this client..."
+              placeholder={t.clients.notes}
               rows={3}
+              maxLength={1000}
             />
           </div>
 
