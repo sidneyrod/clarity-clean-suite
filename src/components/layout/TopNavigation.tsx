@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   Home, 
   Building2, 
@@ -13,7 +14,8 @@ import {
   Settings,
   Moon,
   Sun,
-  Globe
+  Globe,
+  ClipboardList
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -27,6 +29,9 @@ import {
 const TopNavigation = () => {
   const { language, setLanguage, t } = useLanguage();
   const { theme, toggleTheme } = useTheme();
+  const { user } = useAuth();
+
+  const isManagerOrAdmin = user?.role === 'admin' || user?.role === 'manager';
 
   const navItems = [
     { path: '/', label: t.nav.home, icon: Home },
@@ -37,6 +42,7 @@ const TopNavigation = () => {
     { path: '/schedule', label: t.nav.schedule, icon: Calendar },
     { path: '/calculator', label: t.nav.calculator, icon: Calculator },
     { path: '/payroll', label: t.nav.payroll, icon: Wallet },
+    ...(isManagerOrAdmin ? [{ path: '/activity-log', label: t.nav.activityLog, icon: ClipboardList }] : []),
     { path: '/settings', label: t.nav.settings, icon: Settings },
   ];
 

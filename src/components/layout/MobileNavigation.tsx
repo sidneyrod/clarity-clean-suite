@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   Home, 
   Building2, 
@@ -10,7 +11,8 @@ import {
   Calculator, 
   Wallet,
   Settings,
-  Menu
+  Menu,
+  ClipboardList
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -19,7 +21,10 @@ import { useState } from 'react';
 
 const MobileNavigation = () => {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
+
+  const isManagerOrAdmin = user?.role === 'admin' || user?.role === 'manager';
 
   const navItems = [
     { path: '/', label: t.nav.home, icon: Home },
@@ -30,6 +35,7 @@ const MobileNavigation = () => {
     { path: '/schedule', label: t.nav.schedule, icon: Calendar },
     { path: '/calculator', label: t.nav.calculator, icon: Calculator },
     { path: '/payroll', label: t.nav.payroll, icon: Wallet },
+    ...(isManagerOrAdmin ? [{ path: '/activity-log', label: t.nav.activityLog, icon: ClipboardList }] : []),
     { path: '/settings', label: t.nav.settings, icon: Settings },
   ];
 

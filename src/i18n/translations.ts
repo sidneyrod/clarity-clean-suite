@@ -11,6 +11,7 @@ export const translations = {
       calculator: 'Calculator',
       payroll: 'Payroll',
       settings: 'Settings',
+      activityLog: 'Activity Log',
     },
     // Auth
     auth: {
@@ -222,6 +223,17 @@ export const translations = {
       absenceRequest: 'Absence Request',
       markCompleted: 'Mark as Completed',
       sendSchedule: 'Send Schedule',
+      manageAvailability: 'Manage Availability',
+      requestAbsence: 'Request Absence',
+      approveSchedule: 'Approve Schedule',
+      sendViaSms: 'Send via SMS',
+      sendViaEmail: 'Send via Email',
+      noJobsScheduled: 'No jobs scheduled',
+      jobCreated: 'Job created successfully',
+      jobUpdated: 'Job updated successfully',
+      jobDeleted: 'Job deleted successfully',
+      absenceSubmitted: 'Absence request submitted',
+      scheduleSent: 'Schedule sent successfully',
     },
     // Job
     job: {
@@ -240,6 +252,11 @@ export const translations = {
       actualTime: 'Actual Time',
       completeJob: 'Complete Job',
       generateInvoice: 'Generate Invoice',
+      completionNotes: 'Completion Notes',
+      uploadBeforePhotos: 'Upload Before Photos',
+      uploadAfterPhotos: 'Upload After Photos',
+      jobCompleted: 'Job completed successfully',
+      markAsCompleted: 'Mark as Completed',
     },
     // Calculator / Estimates
     calculator: {
@@ -279,6 +296,8 @@ export const translations = {
       includeWindows: 'Clean Windows',
       totalEstimate: 'Total Estimate',
       perVisit: 'per visit',
+      searchEstimates: 'Search estimates...',
+      viewPdf: 'View PDF',
     },
     // Payroll
     payroll: {
@@ -317,6 +336,47 @@ export const translations = {
       runPayroll: 'Run Payroll',
       approvePayroll: 'Approve Payroll',
       payrollApproved: 'Payroll approved successfully',
+      payrollPeriods: 'Payroll Periods',
+      newPeriod: 'New Period',
+      selectProvince: 'Select Province',
+      overtimeThreshold: 'Overtime Threshold',
+      overtimeMultiplier: 'Overtime Multiplier',
+      holidayMultiplier: 'Holiday Multiplier',
+      grossPay: 'Gross Pay',
+    },
+    // Activity Log
+    activityLog: {
+      title: 'Activity Log',
+      description: 'Track all actions performed in the system',
+      user: 'User',
+      action: 'Action',
+      details: 'Details',
+      timestamp: 'Timestamp',
+      noActivity: 'No activity recorded yet',
+      filterByAction: 'Filter by action',
+      filterByUser: 'Filter by user',
+      allActions: 'All Actions',
+      allUsers: 'All Users',
+      created: 'Created',
+      updated: 'Updated',
+      deleted: 'Deleted',
+      completed: 'Completed',
+      approved: 'Approved',
+      sent: 'Sent',
+      exported: 'Exported',
+    },
+    // PDF
+    pdf: {
+      generating: 'Generating PDF...',
+      generated: 'PDF generated successfully',
+      downloadReady: 'PDF ready for download',
+      contractTitle: 'Service Contract',
+      estimateTitle: 'Service Estimate',
+      payrollReport: 'Payroll Report',
+      page: 'Page',
+      of: 'of',
+      generatedOn: 'Generated on',
+      confidential: 'Confidential',
     },
     // Settings
     settings: {
@@ -365,6 +425,8 @@ export const translations = {
       none: 'None',
       yes: 'Yes',
       no: 'No',
+      accessDenied: 'Access Denied',
+      noPermission: 'You do not have permission to view this page',
     },
   },
   fr: {
@@ -379,6 +441,7 @@ export const translations = {
       calculator: 'Calculateur',
       payroll: 'Paie',
       settings: 'Paramètres',
+      activityLog: 'Journal d\'activité',
     },
     // Auth
     auth: {
@@ -590,6 +653,17 @@ export const translations = {
       absenceRequest: 'Demande d\'absence',
       markCompleted: 'Marquer comme terminé',
       sendSchedule: 'Envoyer l\'agenda',
+      manageAvailability: 'Gérer disponibilité',
+      requestAbsence: 'Demander absence',
+      approveSchedule: 'Approuver l\'agenda',
+      sendViaSms: 'Envoyer par SMS',
+      sendViaEmail: 'Envoyer par courriel',
+      noJobsScheduled: 'Aucun job planifié',
+      jobCreated: 'Job créé avec succès',
+      jobUpdated: 'Job mis à jour avec succès',
+      jobDeleted: 'Job supprimé avec succès',
+      absenceSubmitted: 'Demande d\'absence soumise',
+      scheduleSent: 'Agenda envoyé avec succès',
     },
     // Job
     job: {
@@ -608,6 +682,11 @@ export const translations = {
       actualTime: 'Temps réel',
       completeJob: 'Terminer le job',
       generateInvoice: 'Générer facture',
+      completionNotes: 'Notes de complétion',
+      uploadBeforePhotos: 'Télécharger photos avant',
+      uploadAfterPhotos: 'Télécharger photos après',
+      jobCompleted: 'Job terminé avec succès',
+      markAsCompleted: 'Marquer comme terminé',
     },
     // Calculator / Estimates
     calculator: {
@@ -647,6 +726,8 @@ export const translations = {
       includeWindows: 'Nettoyage fenêtres',
       totalEstimate: 'Estimation totale',
       perVisit: 'par visite',
+      searchEstimates: 'Rechercher devis...',
+      viewPdf: 'Voir PDF',
     },
     // Payroll
     payroll: {
@@ -685,6 +766,47 @@ export const translations = {
       runPayroll: 'Exécuter la paie',
       approvePayroll: 'Approuver la paie',
       payrollApproved: 'Paie approuvée avec succès',
+      payrollPeriods: 'Périodes de paie',
+      newPeriod: 'Nouvelle période',
+      selectProvince: 'Sélectionner province',
+      overtimeThreshold: 'Seuil heures sup.',
+      overtimeMultiplier: 'Multiplicateur heures sup.',
+      holidayMultiplier: 'Multiplicateur jours fériés',
+      grossPay: 'Salaire brut',
+    },
+    // Activity Log
+    activityLog: {
+      title: 'Journal d\'activité',
+      description: 'Suivre toutes les actions effectuées dans le système',
+      user: 'Utilisateur',
+      action: 'Action',
+      details: 'Détails',
+      timestamp: 'Horodatage',
+      noActivity: 'Aucune activité enregistrée',
+      filterByAction: 'Filtrer par action',
+      filterByUser: 'Filtrer par utilisateur',
+      allActions: 'Toutes les actions',
+      allUsers: 'Tous les utilisateurs',
+      created: 'Créé',
+      updated: 'Mis à jour',
+      deleted: 'Supprimé',
+      completed: 'Terminé',
+      approved: 'Approuvé',
+      sent: 'Envoyé',
+      exported: 'Exporté',
+    },
+    // PDF
+    pdf: {
+      generating: 'Génération du PDF...',
+      generated: 'PDF généré avec succès',
+      downloadReady: 'PDF prêt au téléchargement',
+      contractTitle: 'Contrat de service',
+      estimateTitle: 'Devis de service',
+      payrollReport: 'Rapport de paie',
+      page: 'Page',
+      of: 'de',
+      generatedOn: 'Généré le',
+      confidential: 'Confidentiel',
     },
     // Settings
     settings: {
@@ -733,6 +855,8 @@ export const translations = {
       none: 'Aucun',
       yes: 'Oui',
       no: 'Non',
+      accessDenied: 'Accès refusé',
+      noPermission: 'Vous n\'avez pas la permission de voir cette page',
     },
   },
 };

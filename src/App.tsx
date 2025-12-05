@@ -18,6 +18,7 @@ import Payroll from "./pages/Payroll";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
+import ActivityLog from "./pages/ActivityLog";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,6 +47,7 @@ const App = () => (
                   <Route path="/schedule" element={<Schedule />} />
                   <Route path="/calculator" element={<Calculator />} />
                   <Route path="/payroll" element={<Payroll />} />
+                  <Route path="/activity-log" element={<ActivityLog />} />
                   <Route path="/settings" element={<Settings />} />
                 </Route>
                 
