@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -6,8 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { User, Mail, Phone, MapPin, Shield } from 'lucide-react';
+import { userSchema, validateForm } from '@/lib/validations';
 
 interface AddUserModalProps {
   open: boolean;
@@ -37,21 +38,39 @@ const initialFormData: UserFormData = {
 
 const AddUserModal = ({ open, onOpenChange, onSubmit, editUser }: AddUserModalProps) => {
   const { t } = useLanguage();
-  const [formData, setFormData] = useState<UserFormData>(editUser || initialFormData);
+  const [formData, setFormData] = useState<UserFormData>(initialFormData);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+
+  // Reset form when modal opens/closes or editUser changes
+  useEffect(() => {
+    if (open) {
+      setFormData(editUser || initialFormData);
+      setErrors({});
+    }
+  }, [open, editUser]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form data
+    const validation = validateForm(userSchema, formData);
+    
+    if (!validation.success) {
+      const validationErrors = (validation as { success: false; errors: Record<string, string> }).errors;
+      setErrors(validationErrors);
+      toast.error(t.common.error, { description: Object.values(validationErrors)[0] });
+      return;
+    }
+    
+    setErrors({});
     setIsLoading(true);
 
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 500));
 
     onSubmit(formData);
-    toast({
-      title: t.common.success,
-      description: editUser ? t.users.userUpdated : t.users.userCreated,
-    });
+    toast.success(editUser ? t.users.userUpdated : t.users.userCreated);
     setFormData(initialFormData);
     onOpenChange(false);
     setIsLoading(false);
@@ -59,6 +78,10 @@ const AddUserModal = ({ open, onOpenChange, onSubmit, editUser }: AddUserModalPr
 
   const updateField = (field: keyof UserFormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear error for this field when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
   };
 
   return (
@@ -82,8 +105,10 @@ const AddUserModal = ({ open, onOpenChange, onSubmit, editUser }: AddUserModalPr
               value={formData.name}
               onChange={(e) => updateField('name', e.target.value)}
               placeholder="John Doe"
-              required
+              className={errors.name ? 'border-destructive' : ''}
+              maxLength={100}
             />
+            {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
           </div>
 
           <div className="space-y-2">
@@ -119,8 +144,10 @@ const AddUserModal = ({ open, onOpenChange, onSubmit, editUser }: AddUserModalPr
                 value={formData.email}
                 onChange={(e) => updateField('email', e.target.value)}
                 placeholder="john@company.com"
-                required
+                className={errors.email ? 'border-destructive' : ''}
+                maxLength={255}
               />
+              {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
             </div>
 
             <div className="space-y-2">
@@ -134,6 +161,7 @@ const AddUserModal = ({ open, onOpenChange, onSubmit, editUser }: AddUserModalPr
                 value={formData.phone}
                 onChange={(e) => updateField('phone', e.target.value)}
                 placeholder="(416) 555-0100"
+                maxLength={20}
               />
             </div>
           </div>
@@ -148,6 +176,7 @@ const AddUserModal = ({ open, onOpenChange, onSubmit, editUser }: AddUserModalPr
               value={formData.address}
               onChange={(e) => updateField('address', e.target.value)}
               placeholder="123 Main Street, Toronto, ON"
+              maxLength={255}
             />
           </div>
 
