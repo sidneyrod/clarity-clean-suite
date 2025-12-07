@@ -55,7 +55,7 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="min-h-screen h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-background via-background to-muted/20">
+    <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20">
       {/* Subtle gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/3 via-transparent to-primary/5 dark:from-primary/5 dark:via-transparent dark:to-primary/8" />
       
@@ -73,7 +73,7 @@ const ForgotPassword = () => {
           <img 
             src={branding.logoUrl} 
             alt=""
-            className="w-[50%] max-w-[600px] h-auto object-contain opacity-[0.02] dark:opacity-[0.015] select-none"
+            className="w-[40%] max-w-[500px] h-auto object-contain opacity-[0.02] dark:opacity-[0.015] select-none"
             style={{ filter: 'blur(2px)' }}
           />
         </div>
@@ -101,13 +101,13 @@ const ForgotPassword = () => {
         </Button>
       </div>
 
-      {/* Centered Card - Same size as Login */}
-      <div className="w-full max-w-[420px] mx-8 z-10">
-        <div className="rounded-2xl bg-card/95 dark:bg-card/90 backdrop-blur-xl border border-border/40 shadow-2xl shadow-primary/5 dark:shadow-primary/10 p-8">
-          {/* Avatar / Logo at top - Circular */}
-          <div className="flex justify-center mb-5">
+      {/* Centered Card - Standardized dimensions (same as Login) */}
+      <div className="w-full max-w-[360px] mx-16 z-10">
+        <div className="rounded-2xl bg-card/95 dark:bg-card/90 backdrop-blur-xl border border-border/40 shadow-2xl shadow-primary/5 dark:shadow-primary/10 px-6 py-5">
+          {/* Avatar / Logo at top - Perfectly Circular */}
+          <div className="flex justify-center mb-3">
             {branding.logoUrl ? (
-              <div className="h-20 w-20 rounded-full overflow-hidden flex items-center justify-center bg-muted/30 border-2 border-border/30 shadow-lg">
+              <div className="h-14 w-14 rounded-full overflow-hidden flex items-center justify-center bg-muted/30 border border-border/30 shadow-md">
                 <img 
                   src={branding.logoUrl} 
                   alt={profile.companyName} 
@@ -115,22 +115,22 @@ const ForgotPassword = () => {
                 />
               </div>
             ) : (
-              <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 border-2 border-primary/20 flex items-center justify-center shadow-lg">
+              <div className="h-14 w-14 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 border border-primary/20 flex items-center justify-center shadow-md">
                 {isSubmitted ? (
-                  <CheckCircle className="h-9 w-9 text-primary" />
+                  <CheckCircle className="h-6 w-6 text-primary" />
                 ) : (
-                  <Mail className="h-9 w-9 text-primary/70" />
+                  <Mail className="h-6 w-6 text-primary/70" />
                 )}
               </div>
             )}
           </div>
 
           {/* Header */}
-          <div className="text-center mb-6">
-            <h1 className="text-xl font-semibold text-foreground tracking-tight">
+          <div className="text-center mb-4">
+            <h1 className="text-base font-semibold text-foreground tracking-tight">
               {isSubmitted ? t.auth.checkEmail : t.auth.resetPassword}
             </h1>
-            <p className="text-sm text-muted-foreground mt-1.5">
+            <p className="text-xs text-muted-foreground mt-1.5">
               {isSubmitted 
                 ? t.auth.resetInstructions 
                 : t.auth.enterEmailToReset
@@ -140,9 +140,9 @@ const ForgotPassword = () => {
           
           {/* Form */}
           {!isSubmitted ? (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-3">
               <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-sm font-medium text-foreground/90">
+                <Label htmlFor="email" className="text-xs font-medium text-foreground/90">
                   {t.auth.email}
                 </Label>
                 <Input
@@ -152,10 +152,10 @@ const ForgotPassword = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="h-10 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50"
+                  className="h-9 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50 text-sm"
                 />
                 {error && (
-                  <p className="text-sm text-destructive mt-1.5 flex items-center gap-1.5">
+                  <p className="text-xs text-destructive mt-1 flex items-center gap-1">
                     <span className="w-1 h-1 rounded-full bg-destructive" />
                     {error}
                   </p>
@@ -164,7 +164,7 @@ const ForgotPassword = () => {
 
               <Button 
                 type="submit" 
-                className="w-full h-10 text-sm font-semibold bg-[hsl(156,55%,40%)] hover:bg-[hsl(156,55%,35%)] dark:bg-[hsl(156,50%,45%)] dark:hover:bg-[hsl(156,50%,40%)] text-white shadow-lg shadow-primary/20 hover:shadow-primary/30 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200"
+                className="w-full h-9 text-xs font-semibold bg-[hsl(156,55%,40%)] hover:bg-[hsl(156,55%,35%)] dark:bg-[hsl(156,50%,45%)] dark:hover:bg-[hsl(156,50%,40%)] text-white shadow-lg shadow-primary/20 hover:shadow-primary/30 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200"
                 disabled={isLoading}
               >
                 {isLoading ? t.common.loading : t.auth.sendResetLink}
@@ -172,21 +172,21 @@ const ForgotPassword = () => {
 
               <Link 
                 to="/login" 
-                className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors pt-2"
+                className="flex items-center justify-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors pt-2"
               >
-                <ArrowLeft className="h-4 w-4" />
+                <ArrowLeft className="h-3.5 w-3.5" />
                 {t.auth.backToLogin}
               </Link>
             </form>
           ) : (
-            <div className="space-y-4">
-              <p className="text-center text-sm text-muted-foreground">
+            <div className="space-y-3">
+              <p className="text-center text-xs text-muted-foreground">
                 {t.auth.resetEmailSentTo} <span className="font-medium text-foreground">{email}</span>
               </p>
               
               <Button 
                 variant="outline" 
-                className="w-full h-10" 
+                className="w-full h-9 text-xs" 
                 onClick={() => setIsSubmitted(false)}
               >
                 {t.auth.tryDifferentEmail}
@@ -194,24 +194,24 @@ const ForgotPassword = () => {
 
               <Link 
                 to="/login" 
-                className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center justify-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
-                <ArrowLeft className="h-4 w-4" />
+                <ArrowLeft className="h-3.5 w-3.5" />
                 {t.auth.backToLogin}
               </Link>
             </div>
           )}
 
           {/* Footer info */}
-          <div className="mt-5 pt-4 border-t border-border/20">
-            <p className="text-center text-xs text-muted-foreground/50">
+          <div className="mt-4 pt-3 border-t border-border/20">
+            <p className="text-center text-[10px] text-muted-foreground/50">
               Protected by enterprise-grade security
             </p>
           </div>
         </div>
 
         {/* Copyright below card */}
-        <p className="text-center text-xs text-muted-foreground/40 mt-4">
+        <p className="text-center text-[10px] text-muted-foreground/40 mt-3">
           © {new Date().getFullYear()} {profile.companyName}
         </p>
       </div>

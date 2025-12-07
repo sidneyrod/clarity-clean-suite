@@ -133,7 +133,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-background via-background to-muted/20">
+    <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20">
       {/* Subtle gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/3 via-transparent to-primary/5 dark:from-primary/5 dark:via-transparent dark:to-primary/8" />
       
@@ -151,7 +151,7 @@ const Login = () => {
           <img 
             src={branding.logoUrl} 
             alt=""
-            className="w-[50%] max-w-[600px] h-auto object-contain opacity-[0.02] dark:opacity-[0.015] select-none"
+            className="w-[40%] max-w-[500px] h-auto object-contain opacity-[0.02] dark:opacity-[0.015] select-none"
             style={{ filter: 'blur(2px)' }}
           />
         </div>
@@ -179,13 +179,13 @@ const Login = () => {
         </Button>
       </div>
 
-      {/* Centered Login Card */}
-      <div className="w-full max-w-[380px] mx-6 z-10">
-        <div className="rounded-xl bg-card/95 dark:bg-card/90 backdrop-blur-xl border border-border/40 shadow-2xl shadow-primary/5 dark:shadow-primary/10 px-5 py-4">
-          {/* Avatar / Logo at top - Circular */}
-          <div className="flex justify-center mb-2">
+      {/* Centered Login Card - Standardized dimensions */}
+      <div className="w-full max-w-[360px] mx-16 z-10">
+        <div className="rounded-2xl bg-card/95 dark:bg-card/90 backdrop-blur-xl border border-border/40 shadow-2xl shadow-primary/5 dark:shadow-primary/10 px-6 py-5">
+          {/* Avatar / Logo at top - Perfectly Circular */}
+          <div className="flex justify-center mb-3">
             {branding.logoUrl ? (
-              <div className="h-12 w-12 rounded-full overflow-hidden flex items-center justify-center bg-muted/30 border border-border/30 shadow">
+              <div className="h-14 w-14 rounded-full overflow-hidden flex items-center justify-center bg-muted/30 border border-border/30 shadow-md">
                 <img 
                   src={branding.logoUrl} 
                   alt={profile.companyName} 
@@ -193,14 +193,14 @@ const Login = () => {
                 />
               </div>
             ) : (
-              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 border border-primary/20 flex items-center justify-center shadow">
-                <Building2 className="h-5 w-5 text-primary/70" />
+              <div className="h-14 w-14 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 border border-primary/20 flex items-center justify-center shadow-md">
+                <Building2 className="h-6 w-6 text-primary/70" />
               </div>
             )}
           </div>
 
           {/* Company Name Header - Simple */}
-          <div className="text-center mb-3">
+          <div className="text-center mb-4">
             <h1 className="text-base font-semibold text-foreground tracking-tight">
               {profile.companyName}
             </h1>
@@ -208,15 +208,15 @@ const Login = () => {
 
           {/* Tabs for Sign In / Sign Up */}
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'signin' | 'signup')} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-2 h-8">
-              <TabsTrigger value="signin">{t.auth.signIn}</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 mb-3 h-9">
+              <TabsTrigger value="signin" className="text-xs">{t.auth.signIn}</TabsTrigger>
+              <TabsTrigger value="signup" className="text-xs">Sign Up</TabsTrigger>
             </TabsList>
 
             {/* Sign In Tab */}
             <TabsContent value="signin">
-              <form onSubmit={handleSignIn} className="space-y-2.5">
-                <div className="space-y-1">
+              <form onSubmit={handleSignIn} className="space-y-3">
+                <div className="space-y-1.5">
                   <Label htmlFor="email" className="text-xs font-medium text-foreground/90">
                     {t.auth.email}
                   </Label>
@@ -231,7 +231,7 @@ const Login = () => {
                   />
                 </div>
                 
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <Label htmlFor="password" className="text-xs font-medium text-foreground/90">
                     {t.auth.password}
                   </Label>
@@ -250,7 +250,7 @@ const Login = () => {
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors p-1"
                     >
-                      {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                   {error && (
@@ -299,12 +299,12 @@ const Login = () => {
                 </Button>
 
                 {/* Google Sign In */}
-                <div className="relative my-2.5">
+                <div className="relative my-3">
                   <div className="absolute inset-0 flex items-center">
                     <span className="w-full border-t border-border/50" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">or continue with</span>
+                    <span className="bg-card px-2 text-muted-foreground text-[10px]">or continue with</span>
                   </div>
                 </div>
 
@@ -328,7 +328,7 @@ const Login = () => {
 
             {/* Sign Up Tab */}
             <TabsContent value="signup">
-              <form onSubmit={handleSignUp} className="space-y-2">
+              <form onSubmit={handleSignUp} className="space-y-2.5">
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <Label htmlFor="firstName" className="text-xs font-medium text-foreground/90">
@@ -392,7 +392,7 @@ const Login = () => {
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors p-1"
                     >
-                      {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
@@ -425,7 +425,7 @@ const Login = () => {
                 >
                   {isLoading ? (
                     <span className="flex items-center gap-2">
-                      <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24">
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                       </svg>
@@ -435,12 +435,12 @@ const Login = () => {
                 </Button>
 
                 {/* Google Sign Up */}
-                <div className="relative my-2">
+                <div className="relative my-2.5">
                   <div className="absolute inset-0 flex items-center">
                     <span className="w-full border-t border-border/50" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">or continue with</span>
+                    <span className="bg-card px-2 text-muted-foreground text-[10px]">or continue with</span>
                   </div>
                 </div>
 
@@ -451,7 +451,7 @@ const Login = () => {
                   className="w-full h-9 text-xs font-medium"
                   disabled={isLoading}
                 >
-                  <svg className="h-3.5 w-3.5 mr-2" viewBox="0 0 24 24">
+                  <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24">
                     <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                     <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                     <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -464,7 +464,7 @@ const Login = () => {
           </Tabs>
 
           {/* Footer info */}
-          <div className="mt-3 pt-2 border-t border-border/20">
+          <div className="mt-4 pt-3 border-t border-border/20">
             <p className="text-center text-[10px] text-muted-foreground/50">
               Protected by enterprise-grade security
             </p>
@@ -472,7 +472,7 @@ const Login = () => {
         </div>
 
         {/* Copyright below card */}
-        <p className="text-center text-[10px] text-muted-foreground/40 mt-2">
+        <p className="text-center text-[10px] text-muted-foreground/40 mt-3">
           © {new Date().getFullYear()} {profile.companyName}
         </p>
       </div>
