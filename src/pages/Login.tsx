@@ -133,7 +133,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative bg-gradient-to-br from-background via-background to-muted/20 py-8 overflow-y-auto">
+    <div className="min-h-screen h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-background via-background to-muted/20">
       {/* Subtle gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/3 via-transparent to-primary/5 dark:from-primary/5 dark:via-transparent dark:to-primary/8" />
       
@@ -180,12 +180,12 @@ const Login = () => {
       </div>
 
       {/* Centered Login Card */}
-      <div className="w-full max-w-[420px] mx-8 z-10">
-        <div className="rounded-2xl bg-card/95 dark:bg-card/90 backdrop-blur-xl border border-border/40 shadow-2xl shadow-primary/5 dark:shadow-primary/10 p-6">
+      <div className="w-full max-w-[380px] mx-6 z-10">
+        <div className="rounded-xl bg-card/95 dark:bg-card/90 backdrop-blur-xl border border-border/40 shadow-2xl shadow-primary/5 dark:shadow-primary/10 px-5 py-4">
           {/* Avatar / Logo at top - Circular */}
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-center mb-2">
             {branding.logoUrl ? (
-              <div className="h-16 w-16 rounded-full overflow-hidden flex items-center justify-center bg-muted/30 border-2 border-border/30 shadow-lg">
+              <div className="h-12 w-12 rounded-full overflow-hidden flex items-center justify-center bg-muted/30 border border-border/30 shadow">
                 <img 
                   src={branding.logoUrl} 
                   alt={profile.companyName} 
@@ -193,31 +193,31 @@ const Login = () => {
                 />
               </div>
             ) : (
-              <div className="h-16 w-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 border-2 border-primary/20 flex items-center justify-center shadow-lg">
-                <Building2 className="h-7 w-7 text-primary/70" />
+              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 border border-primary/20 flex items-center justify-center shadow">
+                <Building2 className="h-5 w-5 text-primary/70" />
               </div>
             )}
           </div>
 
           {/* Company Name Header - Simple */}
-          <div className="text-center mb-4">
-            <h1 className="text-lg font-semibold text-foreground tracking-tight">
+          <div className="text-center mb-3">
+            <h1 className="text-base font-semibold text-foreground tracking-tight">
               {profile.companyName}
             </h1>
           </div>
 
           {/* Tabs for Sign In / Sign Up */}
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'signin' | 'signup')} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-3">
+            <TabsList className="grid w-full grid-cols-2 mb-2 h-8">
               <TabsTrigger value="signin">{t.auth.signIn}</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
             </TabsList>
 
             {/* Sign In Tab */}
             <TabsContent value="signin">
-              <form onSubmit={handleSignIn} className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="email" className="text-sm font-medium text-foreground/90">
+              <form onSubmit={handleSignIn} className="space-y-2.5">
+                <div className="space-y-1">
+                  <Label htmlFor="email" className="text-xs font-medium text-foreground/90">
                     {t.auth.email}
                   </Label>
                   <Input
@@ -227,12 +227,12 @@ const Login = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="h-10 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50"
+                    className="h-9 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50 text-sm"
                   />
                 </div>
                 
-                <div className="space-y-1.5">
-                  <Label htmlFor="password" className="text-sm font-medium text-foreground/90">
+                <div className="space-y-1">
+                  <Label htmlFor="password" className="text-xs font-medium text-foreground/90">
                     {t.auth.password}
                   </Label>
                   <div className="relative">
@@ -243,40 +243,40 @@ const Login = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="pr-10 h-10 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50"
+                      className="pr-9 h-9 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50 text-sm"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors p-1"
                     >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                     </button>
                   </div>
                   {error && (
-                    <p className="text-sm text-destructive mt-1.5 flex items-center gap-1.5">
+                    <p className="text-xs text-destructive mt-1 flex items-center gap-1">
                       <span className="w-1 h-1 rounded-full bg-destructive" />
                       {error}
                     </p>
                   )}
                 </div>
 
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center space-x-2">
                     <Checkbox 
                       id="remember" 
                       checked={rememberMe}
                       onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-                      className="border-border/60 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                      className="h-3.5 w-3.5 border-border/60 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                     />
-                    <Label htmlFor="remember" className="text-sm font-normal text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                    <Label htmlFor="remember" className="text-xs font-normal text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
                       {t.auth.rememberMe}
                     </Label>
                   </div>
                   
                   <Link 
                     to="/forgot-password" 
-                    className="text-sm text-primary/80 hover:text-primary transition-colors hover:underline underline-offset-2"
+                    className="text-xs text-primary/80 hover:text-primary transition-colors hover:underline underline-offset-2"
                   >
                     {t.auth.forgotPassword}
                   </Link>
@@ -284,7 +284,7 @@ const Login = () => {
 
                 <Button 
                   type="submit" 
-                  className="w-full h-10 text-sm font-semibold bg-[hsl(156,55%,40%)] hover:bg-[hsl(156,55%,35%)] dark:bg-[hsl(156,50%,45%)] dark:hover:bg-[hsl(156,50%,40%)] text-white shadow-lg shadow-primary/20 hover:shadow-primary/30 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200"
+                  className="w-full h-9 text-xs font-semibold bg-[hsl(156,55%,40%)] hover:bg-[hsl(156,55%,35%)] dark:bg-[hsl(156,50%,45%)] dark:hover:bg-[hsl(156,50%,40%)] text-white shadow-lg shadow-primary/20 hover:shadow-primary/30 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200"
                   disabled={isLoading}
                 >
                   {isLoading ? (
@@ -299,7 +299,7 @@ const Login = () => {
                 </Button>
 
                 {/* Google Sign In */}
-                <div className="relative my-4">
+                <div className="relative my-2.5">
                   <div className="absolute inset-0 flex items-center">
                     <span className="w-full border-t border-border/50" />
                   </div>
@@ -312,7 +312,7 @@ const Login = () => {
                   type="button"
                   variant="outline"
                   onClick={handleGoogleSignIn}
-                  className="w-full h-10 text-sm font-medium"
+                  className="w-full h-9 text-xs font-medium"
                   disabled={isLoading}
                 >
                   <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24">
@@ -328,10 +328,10 @@ const Login = () => {
 
             {/* Sign Up Tab */}
             <TabsContent value="signup">
-              <form onSubmit={handleSignUp} className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="firstName" className="text-sm font-medium text-foreground/90">
+              <form onSubmit={handleSignUp} className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="firstName" className="text-xs font-medium text-foreground/90">
                       First Name
                     </Label>
                     <Input
@@ -340,11 +340,11 @@ const Login = () => {
                       placeholder="John"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
-                      className="h-10 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50"
+                      className="h-9 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50 text-sm"
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="lastName" className="text-sm font-medium text-foreground/90">
+                  <div className="space-y-1">
+                    <Label htmlFor="lastName" className="text-xs font-medium text-foreground/90">
                       Last Name
                     </Label>
                     <Input
@@ -353,13 +353,13 @@ const Login = () => {
                       placeholder="Doe"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
-                      className="h-10 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50"
+                      className="h-9 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50 text-sm"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="signup-email" className="text-sm font-medium text-foreground/90">
+                <div className="space-y-1">
+                  <Label htmlFor="signup-email" className="text-xs font-medium text-foreground/90">
                     {t.auth.email}
                   </Label>
                   <Input
@@ -369,12 +369,12 @@ const Login = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="h-10 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50"
+                    className="h-9 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50 text-sm"
                   />
                 </div>
                 
-                <div className="space-y-1.5">
-                  <Label htmlFor="signup-password" className="text-sm font-medium text-foreground/90">
+                <div className="space-y-1">
+                  <Label htmlFor="signup-password" className="text-xs font-medium text-foreground/90">
                     {t.auth.password}
                   </Label>
                   <div className="relative">
@@ -385,20 +385,20 @@ const Login = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="pr-10 h-10 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50"
+                      className="pr-9 h-9 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50 text-sm"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors p-1"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors p-1"
                     >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                     </button>
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="confirm-password" className="text-sm font-medium text-foreground/90">
+                <div className="space-y-1">
+                  <Label htmlFor="confirm-password" className="text-xs font-medium text-foreground/90">
                     Confirm Password
                   </Label>
                   <Input
@@ -408,10 +408,10 @@ const Login = () => {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
-                    className="h-10 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50"
+                    className="h-9 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50 text-sm"
                   />
                   {error && (
-                    <p className="text-sm text-destructive mt-1.5 flex items-center gap-1.5">
+                    <p className="text-xs text-destructive mt-1 flex items-center gap-1">
                       <span className="w-1 h-1 rounded-full bg-destructive" />
                       {error}
                     </p>
@@ -420,12 +420,12 @@ const Login = () => {
 
                 <Button 
                   type="submit" 
-                  className="w-full h-10 text-sm font-semibold bg-[hsl(156,55%,40%)] hover:bg-[hsl(156,55%,35%)] dark:bg-[hsl(156,50%,45%)] dark:hover:bg-[hsl(156,50%,40%)] text-white shadow-lg shadow-primary/20 hover:shadow-primary/30 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200"
+                  className="w-full h-9 text-xs font-semibold bg-[hsl(156,55%,40%)] hover:bg-[hsl(156,55%,35%)] dark:bg-[hsl(156,50%,45%)] dark:hover:bg-[hsl(156,50%,40%)] text-white shadow-lg shadow-primary/20 hover:shadow-primary/30 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200"
                   disabled={isLoading}
                 >
                   {isLoading ? (
                     <span className="flex items-center gap-2">
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                      <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                       </svg>
@@ -435,7 +435,7 @@ const Login = () => {
                 </Button>
 
                 {/* Google Sign Up */}
-                <div className="relative my-4">
+                <div className="relative my-2">
                   <div className="absolute inset-0 flex items-center">
                     <span className="w-full border-t border-border/50" />
                   </div>
@@ -448,10 +448,10 @@ const Login = () => {
                   type="button"
                   variant="outline"
                   onClick={handleGoogleSignIn}
-                  className="w-full h-10 text-sm font-medium"
+                  className="w-full h-9 text-xs font-medium"
                   disabled={isLoading}
                 >
-                  <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24">
+                  <svg className="h-3.5 w-3.5 mr-2" viewBox="0 0 24 24">
                     <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                     <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                     <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -464,15 +464,15 @@ const Login = () => {
           </Tabs>
 
           {/* Footer info */}
-          <div className="mt-4 pt-3 border-t border-border/20">
-            <p className="text-center text-xs text-muted-foreground/50">
+          <div className="mt-3 pt-2 border-t border-border/20">
+            <p className="text-center text-[10px] text-muted-foreground/50">
               Protected by enterprise-grade security
             </p>
           </div>
         </div>
 
         {/* Copyright below card */}
-        <p className="text-center text-xs text-muted-foreground/40 mt-4">
+        <p className="text-center text-[10px] text-muted-foreground/40 mt-2">
           © {new Date().getFullYear()} {profile.companyName}
         </p>
       </div>
