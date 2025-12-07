@@ -2,18 +2,20 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
+// Fallback values for Lovable Cloud
+const SUPABASE_URL = "https://uynvypfkwwkoxchaghui.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5bnZ5cGZrd3drb3hjaGFnaHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNzAwNDIsImV4cCI6MjA4MDY0NjA0Mn0._7oVSv07VXvnTDsyYCsVQprP5lwue8w4HE2iiIp0rU4";
+
 const supabaseUrl =
   import.meta.env.VITE_SUPABASE_URL ||
-  (window as any)?.__SUPABASE_URL__;
+  (window as any)?.__SUPABASE_URL__ ||
+  SUPABASE_URL;
 
 const supabaseKey =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
-  (window as any)?.__SUPABASE_ANON_KEY__;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error("Supabase environment variables are missing. Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY are configured.");
-}
+  (window as any)?.__SUPABASE_ANON_KEY__ ||
+  SUPABASE_ANON_KEY;
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
