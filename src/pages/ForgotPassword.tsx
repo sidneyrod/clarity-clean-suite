@@ -102,7 +102,7 @@ const ForgotPassword = () => {
       </div>
 
       {/* Centered Card - Standardized dimensions (same as Login) */}
-      <div className="w-full max-w-[360px] mx-16 z-10">
+      <div className="w-full max-w-[320px] mx-auto z-10">
         <div className="rounded-2xl bg-card/95 dark:bg-card/90 backdrop-blur-xl border border-border/40 shadow-2xl shadow-primary/5 dark:shadow-primary/10 px-6 py-5">
           {/* Avatar / Logo at top - Perfectly Circular */}
           <div className="flex justify-center mb-3">
