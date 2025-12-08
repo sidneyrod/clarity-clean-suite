@@ -153,11 +153,12 @@ const Login = () => {
           
           {/* Logo - Arkelium Symbol */}
           <div className="flex flex-col items-center mb-6">
-            <div className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center mb-3">
+            <div className="w-20 h-20 flex items-center justify-center mb-2">
               <img 
                 src={arkeliumLogo} 
                 alt="Arkelium" 
                 className="w-full h-full object-contain"
+                style={{ background: 'transparent' }}
               />
             </div>
             
