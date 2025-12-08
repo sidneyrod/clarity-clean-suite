@@ -50,7 +50,12 @@ const Dashboard = () => {
   const { t } = useLanguage();
   const { user } = useAuth();
 
-  const userName = user?.profile?.first_name || 'User';
+  // Get user's real name from profile (first_name + last_name)
+  const firstName = user?.profile?.first_name || '';
+  const lastName = user?.profile?.last_name || '';
+  const userName = firstName && lastName 
+    ? `${firstName} ${lastName}` 
+    : firstName || lastName || 'User';
 
   return (
     <div className="container px-6 lg:px-10 py-8 space-y-8">
