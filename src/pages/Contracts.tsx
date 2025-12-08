@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useCompanyStore } from '@/stores/companyStore';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import PageHeader from '@/components/ui/page-header';
 import SearchInput from '@/components/ui/search-input';
 import DataTable, { Column } from '@/components/ui/data-table';
-import StatusBadge from '@/components/ui/status-badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,23 +44,35 @@ interface Contract {
   startDate: string;
   hoursPerWeek: number;
   hourlyRate: number;
+  clientEmail?: string;
+  clientPhone?: string;
 }
 
-const mockClients = [
-  { id: '1', name: 'Sarah Mitchell' },
-  { id: '2', name: 'Thompson Corporation' },
-  { id: '3', name: 'Emily Chen' },
-  { id: '4', name: 'Metro Office Solutions' },
-  { id: '5', name: 'Robert Johnson' },
-];
+interface Client {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+}
 
-const initialContracts: Contract[] = [
-  { id: '1', clientId: '1', clientName: 'Sarah Mitchell', location: '245 Oak Street', frequency: 'weekly', services: ['Deep Clean', 'Kitchen', 'Bathrooms'], status: 'active', value: 180, avgDuration: '3h', startDate: '2024-01-15', hoursPerWeek: 4, hourlyRate: 45 },
-  { id: '2', clientId: '2', clientName: 'Thompson Corp', location: '890 Business Ave', frequency: 'biweekly', services: ['Office Clean', 'Windows', 'Floors'], status: 'active', value: 450, avgDuration: '6h', startDate: '2024-02-01', hoursPerWeek: 6, hourlyRate: 50 },
-  { id: '3', clientId: '3', clientName: 'Emily Chen', location: '112 Maple Drive', frequency: 'monthly', services: ['Standard Clean'], status: 'active', value: 120, avgDuration: '2h', startDate: '2024-03-10', hoursPerWeek: 2, hourlyRate: 45 },
-  { id: '4', clientId: '4', clientName: 'Metro Office', location: '456 Tower Blvd', frequency: 'weekly', services: ['Daily Clean', 'Sanitization'], status: 'pending', value: 850, avgDuration: '8h', startDate: '2024-06-01', hoursPerWeek: 10, hourlyRate: 55 },
-  { id: '5', clientId: '5', clientName: 'Robert Johnson', location: '78 Pine Avenue', frequency: 'oneTime', services: ['Move-out Clean'], status: 'completed', value: 350, avgDuration: '5h', startDate: '2024-05-20', hoursPerWeek: 5, hourlyRate: 45 },
-];
+interface CompanyData {
+  id: string;
+  trade_name: string;
+  legal_name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  city: string | null;
+  province: string | null;
+  postal_code: string | null;
+}
+
+interface BrandingData {
+  logo_url: string | null;
+  primary_color: string | null;
+  secondary_color: string | null;
+  accent_color: string | null;
+}
 
 const frequencyColors: Record<string, string> = {
   weekly: 'bg-primary/10 text-primary',
@@ -79,31 +91,178 @@ const statusColors: Record<string, string> = {
 
 const Contracts = () => {
   const { t, language } = useLanguage();
-  const { profile, branding } = useCompanyStore();
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
-  const [contracts, setContracts] = useState<Contract[]>(initialContracts);
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [companyData, setCompanyData] = useState<CompanyData | null>(null);
+  const [brandingData, setBrandingData] = useState<BrandingData | null>(null);
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editContract, setEditContract] = useState<Contract | null>(null);
   const [deleteContract, setDeleteContract] = useState<Contract | null>(null);
   const [isSendingEmail, setIsSendingEmail] = useState<string | null>(null);
   const [isSendingSms, setIsSendingSms] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch clients from database
+  useEffect(() => {
+    const fetchClients = async () => {
+      if (!user?.profile?.company_id) return;
+      
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, name, email, phone')
+        .eq('company_id', user.profile.company_id);
+      
+      if (error) {
+        console.error('Error fetching clients:', error);
+        return;
+      }
+      
+      setClients(data || []);
+    };
+
+    fetchClients();
+  }, [user?.profile?.company_id]);
+
+  // Fetch contracts from database
+  useEffect(() => {
+    const fetchContracts = async () => {
+      if (!user?.profile?.company_id) return;
+      
+      setIsLoading(true);
+      
+      const { data, error } = await supabase
+        .from('contracts')
+        .select(`
+          id,
+          client_id,
+          status,
+          frequency,
+          services,
+          monthly_value,
+          start_date,
+          clients(id, name, email, phone),
+          client_locations(address, city)
+        `)
+        .eq('company_id', user.profile.company_id);
+      
+      if (error) {
+        console.error('Error fetching contracts:', error);
+        setIsLoading(false);
+        return;
+      }
+      
+      const mappedContracts: Contract[] = (data || []).map((contract: any) => ({
+        id: contract.id,
+        clientId: contract.client_id,
+        clientName: contract.clients?.name || 'Unknown',
+        clientEmail: contract.clients?.email,
+        clientPhone: contract.clients?.phone,
+        location: contract.client_locations?.address 
+          ? `${contract.client_locations.address}, ${contract.client_locations.city || ''}`
+          : 'No location',
+        frequency: contract.frequency === 'bi-weekly' ? 'biweekly' : (contract.frequency || 'weekly') as Contract['frequency'],
+        services: contract.services || [],
+        status: contract.status as Contract['status'],
+        value: contract.monthly_value || 0,
+        avgDuration: '3h',
+        startDate: contract.start_date || '',
+        hoursPerWeek: 4,
+        hourlyRate: 45,
+      }));
+      
+      setContracts(mappedContracts);
+      setIsLoading(false);
+    };
+
+    fetchContracts();
+  }, [user?.profile?.company_id]);
+
+  // Fetch company and branding data for PDF generation
+  useEffect(() => {
+    const fetchCompanyData = async () => {
+      if (!user?.profile?.company_id) return;
+      
+      const { data: company, error: companyError } = await supabase
+        .from('companies')
+        .select('id, trade_name, legal_name, email, phone, address, city, province, postal_code')
+        .eq('id', user.profile.company_id)
+        .single();
+      
+      if (companyError) {
+        console.error('Error fetching company:', companyError);
+        return;
+      }
+      
+      setCompanyData(company);
+      
+      const { data: branding, error: brandingError } = await supabase
+        .from('company_branding')
+        .select('logo_url, primary_color, secondary_color, accent_color')
+        .eq('company_id', user.profile.company_id)
+        .single();
+      
+      if (!brandingError && branding) {
+        setBrandingData(branding);
+      }
+    };
+
+    fetchCompanyData();
+  }, [user?.profile?.company_id]);
 
   const filteredContracts = contracts.filter(contract =>
     contract.clientName.toLowerCase().includes(search.toLowerCase()) ||
     contract.location.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleAddContract = (contractData: ContractFormData) => {
-    const client = mockClients.find(c => c.id === contractData.clientId);
+  const handleAddContract = async (contractData: ContractFormData) => {
+    if (!user?.profile?.company_id) return;
+    
+    const client = clients.find(c => c.id === contractData.clientId);
+    
+    if (!client) {
+      toast({
+        title: t.common.error,
+        description: 'Please select a valid client before creating a contract.',
+        variant: 'destructive',
+      });
+      return;
+    }
     
     if (editContract) {
+      // Update existing contract
+      const { error } = await supabase
+        .from('contracts')
+        .update({
+          client_id: contractData.clientId,
+          status: contractData.status,
+          frequency: contractData.billingFrequency,
+          services: contractData.cleaningScope.split(',').map(s => s.trim()).filter(Boolean),
+          monthly_value: contractData.hoursPerWeek * contractData.hourlyRate,
+          start_date: contractData.startDate?.toISOString().split('T')[0],
+          notes: contractData.specialNotes,
+        })
+        .eq('id', editContract.id);
+      
+      if (error) {
+        toast({
+          title: t.common.error,
+          description: 'Failed to update contract.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
       setContracts(prev => prev.map(c => 
         c.id === editContract.id 
           ? { 
               ...c, 
               clientId: contractData.clientId,
               clientName: client?.name || c.clientName,
+              clientEmail: client?.email,
+              clientPhone: client?.phone,
               location: contractData.serviceLocation,
               frequency: (contractData.billingFrequency === 'bi-weekly' ? 'biweekly' : contractData.billingFrequency === 'monthly' ? 'monthly' : 'weekly') as Contract['frequency'],
               services: contractData.cleaningScope.split(',').map(s => s.trim()).filter(Boolean),
@@ -116,11 +275,45 @@ const Contracts = () => {
           : c
       ));
       setEditContract(null);
+      toast({
+        title: t.common.success,
+        description: 'Contract updated successfully.',
+      });
     } else {
+      // Create new contract
+      const contractNumber = `CNT-${Date.now()}`;
+      
+      const { data, error } = await supabase
+        .from('contracts')
+        .insert({
+          company_id: user.profile.company_id,
+          client_id: contractData.clientId,
+          contract_number: contractNumber,
+          status: contractData.status,
+          frequency: contractData.billingFrequency,
+          services: contractData.cleaningScope.split(',').map(s => s.trim()).filter(Boolean),
+          monthly_value: contractData.hoursPerWeek * contractData.hourlyRate,
+          start_date: contractData.startDate?.toISOString().split('T')[0],
+          notes: contractData.specialNotes,
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        toast({
+          title: t.common.error,
+          description: 'Failed to create contract.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
       const newContract: Contract = {
-        id: Date.now().toString(),
+        id: data.id,
         clientId: contractData.clientId,
         clientName: client?.name || 'Unknown',
+        clientEmail: client?.email,
+        clientPhone: client?.phone,
         location: contractData.serviceLocation,
         frequency: contractData.billingFrequency === 'bi-weekly' ? 'biweekly' : contractData.billingFrequency === 'monthly' ? 'monthly' : 'weekly',
         services: contractData.cleaningScope.split(',').map(s => s.trim()).filter(Boolean),
@@ -132,11 +325,29 @@ const Contracts = () => {
         hourlyRate: contractData.hourlyRate,
       };
       setContracts(prev => [...prev, newContract]);
+      toast({
+        title: t.common.success,
+        description: 'Contract created successfully.',
+      });
     }
   };
 
-  const handleDeleteContract = () => {
+  const handleDeleteContract = async () => {
     if (deleteContract) {
+      const { error } = await supabase
+        .from('contracts')
+        .delete()
+        .eq('id', deleteContract.id);
+      
+      if (error) {
+        toast({
+          title: t.common.error,
+          description: 'Failed to delete contract.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
       setContracts(prev => prev.filter(c => c.id !== deleteContract.id));
       toast({
         title: t.common.success,
@@ -156,8 +367,8 @@ const Contracts = () => {
       contractId: contract.id,
       clientName: contract.clientName,
       clientAddress: contract.location,
-      clientEmail: undefined,
-      clientPhone: undefined,
+      clientEmail: contract.clientEmail,
+      clientPhone: contract.clientPhone,
       contractType: contract.frequency === 'oneTime' ? 'one-time' : 'recurring',
       startDate: contract.startDate,
       endDate: undefined,
@@ -176,9 +387,51 @@ const Contracts = () => {
   };
 
   const handleViewPdf = (contract: Contract) => {
+    if (!contract.clientId || contract.clientName === 'Unknown') {
+      toast({
+        title: t.common.error,
+        description: 'Cannot generate PDF: No valid client linked to this contract.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!companyData) {
+      toast({
+        title: t.common.error,
+        description: 'Company data not loaded. Please try again.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       const pdfData = buildContractPdfData(contract);
-      const htmlContent = generateContractPdf(pdfData, profile, branding, language);
+      
+      // Build company profile from database data
+      const companyProfile = {
+        companyName: companyData.trade_name || companyData.legal_name,
+        legalName: companyData.legal_name,
+        email: companyData.email || '',
+        phone: companyData.phone || '',
+        address: companyData.address || '',
+        city: companyData.city || '',
+        province: companyData.province || 'Ontario',
+        postalCode: companyData.postal_code || '',
+        website: '',
+        businessNumber: '',
+        gstHstNumber: '',
+      };
+      
+      // Build branding from database data
+      const branding = {
+        logoUrl: brandingData?.logo_url || '',
+        primaryColor: brandingData?.primary_color || '#1a3d2e',
+        secondaryColor: brandingData?.secondary_color || '#2d5a45',
+        accentColor: brandingData?.accent_color || '#4ade80',
+      };
+      
+      const htmlContent = generateContractPdf(pdfData, companyProfile, branding, language);
       openPdfPreview(htmlContent, `contract-${contract.id}-${contract.clientName}`);
       
       toast({
@@ -195,14 +448,19 @@ const Contracts = () => {
   };
 
   const handleSendEmail = async (contract: Contract) => {
+    if (!contract.clientId || contract.clientName === 'Unknown') {
+      toast({
+        title: t.common.error,
+        description: 'Cannot send email: No valid client linked to this contract.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsSendingEmail(contract.id);
     
     // Simulate API call - in production, this would call a backend endpoint
     await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // TODO: Replace with actual backend API call
-    // const pdfData = buildContractPdfData(contract);
-    // await sendContractEmail(contract.clientEmail, pdfData);
     
     setIsSendingEmail(null);
     toast({
@@ -212,13 +470,19 @@ const Contracts = () => {
   };
 
   const handleSendSms = async (contract: Contract) => {
+    if (!contract.clientId || contract.clientName === 'Unknown') {
+      toast({
+        title: t.common.error,
+        description: 'Cannot send SMS: No valid client linked to this contract.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsSendingSms(contract.id);
     
     // Simulate API call - in production, this would call a backend endpoint
     await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // TODO: Replace with actual backend API call
-    // await sendContractSms(contract.clientPhone, contract.id);
     
     setIsSendingSms(null);
     toast({
@@ -357,7 +621,7 @@ const Contracts = () => {
         columns={columns}
         data={filteredContracts}
         onRowClick={setSelectedContract}
-        emptyMessage={t.common.noData}
+        emptyMessage={isLoading ? 'Loading...' : t.common.noData}
       />
 
       {/* Contract Details Dialog */}
@@ -462,7 +726,7 @@ const Contracts = () => {
         open={isAddModalOpen}
         onOpenChange={setIsAddModalOpen}
         onSubmit={handleAddContract}
-        clients={mockClients}
+        clients={clients}
         editContract={editContract ? {
           id: editContract.id,
           clientId: editContract.clientId,
