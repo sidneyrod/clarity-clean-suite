@@ -1,7 +1,5 @@
-import { useTheme } from '@/contexts/ThemeContext';
 import { cn } from '@/lib/utils';
-import arkeliumLogoDark from '@/assets/arkelium-logo-dark.png';
-import arkeliumLogoLight from '@/assets/arkelium-logo-light.png';
+import arkeliumLogo from '@/assets/arkelium-logo.png';
 
 interface ArkeliumIconProps {
   className?: string;
@@ -9,13 +7,10 @@ interface ArkeliumIconProps {
 }
 
 /**
- * Arkelium platform icon - Theme-adaptive logo.
- * Uses green logo for dark theme and white logo for light theme.
+ * Arkelium platform icon - Golden logo used for both themes.
+ * Single image eliminates delay when switching themes.
  */
 const ArkeliumIcon = ({ className, size = 'md' }: ArkeliumIconProps) => {
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
-  
   const sizeClasses = {
     sm: 'w-6 h-6',
     md: 'w-10 h-10',
@@ -25,7 +20,7 @@ const ArkeliumIcon = ({ className, size = 'md' }: ArkeliumIconProps) => {
 
   return (
     <img
-      src={isDark ? arkeliumLogoDark : arkeliumLogoLight}
+      src={arkeliumLogo}
       alt="Arkelium"
       className={cn(sizeClasses[size], 'object-contain', className)}
     />
