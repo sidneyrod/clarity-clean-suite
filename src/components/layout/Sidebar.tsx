@@ -73,23 +73,18 @@ const Sidebar = () => {
         "hidden lg:flex flex-col h-screen sticky top-0 border-r border-border/50 bg-sidebar-background transition-all duration-300 ease-in-out",
         collapsed ? "w-[68px]" : "w-56"
       )}>
-        {/* Platform Logo - ARKELIUM */}
-        <div className={cn(
-          "flex items-center h-14 px-3 border-b border-sidebar-border shrink-0",
-          collapsed ? "justify-center" : "gap-2.5"
-        )}>
-          <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 flex items-center justify-center">
+        {/* Platform Logo - ARKELIUM Symbol Only */}
+        <div className="flex items-center justify-center h-16 px-3 border-b border-sidebar-border shrink-0">
+          <div className={cn(
+            "rounded-full overflow-hidden shrink-0 flex items-center justify-center",
+            collapsed ? "w-10 h-10" : "w-12 h-12"
+          )}>
             <img 
               src={arkeliumLogo} 
               alt="Arkelium" 
               className="w-full h-full object-contain"
             />
           </div>
-          {!collapsed && (
-            <span className="text-sm font-semibold tracking-tight text-[#D4A84B] truncate">
-              ARKELIUM
-            </span>
-          )}
         </div>
 
         {/* Current Company Context */}
