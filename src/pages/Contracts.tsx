@@ -267,7 +267,21 @@ const Contracts = () => {
   );
 
   const handleAddContract = async (contractData: ContractFormData) => {
-    if (!user?.profile?.company_id) return;
+    let companyId = user?.profile?.company_id;
+    
+    if (!companyId) {
+      const { data: companyIdData } = await supabase.rpc('get_user_company_id');
+      companyId = companyIdData;
+    }
+    
+    if (!companyId) {
+      toast({
+        title: t.common.error,
+        description: 'Unable to identify company. Please contact your administrator.',
+        variant: 'destructive',
+      });
+      return;
+    }
     
     const client = clients.find(c => c.id === contractData.clientId);
     
@@ -335,7 +349,7 @@ const Contracts = () => {
       const { data, error } = await supabase
         .from('contracts')
         .insert({
-          company_id: user.profile.company_id,
+          company_id: companyId,
           client_id: contractData.clientId,
           contract_number: contractNumber,
           status: contractData.status,

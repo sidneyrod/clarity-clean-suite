@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useCompanyStore } from '@/stores/companyStore';
 import { 
   Home, 
@@ -21,14 +22,17 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { useState, useEffect } from 'react';
-import arkeliumLogo from '@/assets/arkelium-logo.png';
+import arkeliumLogoDark from '@/assets/arkelium-logo-dark.png';
+import arkeliumLogoLight from '@/assets/arkelium-logo-light.png';
 
 const Sidebar = () => {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const { theme } = useTheme();
   const { branding, profile } = useCompanyStore();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const isDark = theme === 'dark';
 
   // Auto-collapse on smaller desktop screens
   useEffect(() => {
@@ -76,7 +80,7 @@ const Sidebar = () => {
         )}>
           <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 flex items-center justify-center">
             <img 
-              src={arkeliumLogo} 
+              src={isDark ? arkeliumLogoDark : arkeliumLogoLight} 
               alt="Arkelium" 
               className="w-full h-full object-contain"
             />

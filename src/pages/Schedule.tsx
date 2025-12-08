@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
 import PageHeader from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,14 +26,13 @@ import {
   Users,
   Pencil,
   Trash2,
-  FileText,
   Mail,
   MessageSquare,
-  Receipt
+  Receipt,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { useScheduleStore, JobStatus, ScheduledJob } from '@/stores/scheduleStore';
 import { logActivity } from '@/stores/activityStore';
 import { useInvoiceStore } from '@/stores/invoiceStore';
 import { useCompanyStore } from '@/stores/companyStore';
@@ -40,9 +41,37 @@ import JobCompletionModal from '@/components/modals/JobCompletionModal';
 import AbsenceRequestModal from '@/components/modals/AbsenceRequestModal';
 import AvailabilityManager from '@/components/schedule/AvailabilityManager';
 import ConfirmDialog from '@/components/modals/ConfirmDialog';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, startOfWeek, endOfWeek, addWeeks, subWeeks, isSameDay } from 'date-fns';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, startOfWeek, endOfWeek, addWeeks, subWeeks, isSameDay, addDays, subDays } from 'date-fns';
 
 type ViewType = 'day' | 'week' | 'month' | 'timeline';
+type JobStatus = 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
+
+interface ScheduledJob {
+  id: string;
+  clientId: string;
+  clientName: string;
+  address: string;
+  date: string;
+  time: string;
+  duration: string;
+  employeeId: string;
+  employeeName: string;
+  status: JobStatus;
+  services: string[];
+  notes?: string;
+  completedAt?: string;
+}
+
+interface AbsenceRequest {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  startDate: string;
+  endDate: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+}
 
 const statusConfig: Record<JobStatus, { color: string; bgColor: string; label: string }> = {
   scheduled: { color: 'text-info', bgColor: 'bg-info/10 border-info/20', label: 'Scheduled' },
@@ -51,14 +80,32 @@ const statusConfig: Record<JobStatus, { color: string; bgColor: string; label: s
   cancelled: { color: 'text-muted-foreground', bgColor: 'bg-muted border-border', label: 'Cancelled' },
 };
 
+// Generate 24-hour time slots
+const generateTimeSlots = () => {
+  const slots: { value: string; label: string }[] = [];
+  for (let hour = 0; hour < 24; hour++) {
+    const h24 = hour.toString().padStart(2, '0');
+    const value = `${h24}:00`;
+    const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    const ampm = hour < 12 ? 'AM' : 'PM';
+    const label = `${h12}:00 ${ampm}`;
+    slots.push({ value, label });
+  }
+  return slots;
+};
+
+const TIME_SLOTS = generateTimeSlots();
+
 const Schedule = () => {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const { jobs, addJob, updateJob, deleteJob, completeJob, addAbsenceRequest, absenceRequests } = useScheduleStore();
   const { addInvoice, getInvoiceByJobId } = useInvoiceStore();
   const { estimateConfig } = useCompanyStore();
   
   const [view, setView] = useState<ViewType>('week');
+  const [jobs, setJobs] = useState<ScheduledJob[]>([]);
+  const [absenceRequests, setAbsenceRequests] = useState<AbsenceRequest[]>([]);
   const [selectedJob, setSelectedJob] = useState<ScheduledJob | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showAddJob, setShowAddJob] = useState(false);
@@ -68,8 +115,133 @@ const Schedule = () => {
   const [editingJob, setEditingJob] = useState<ScheduledJob | null>(null);
   const [employeeFilter, setEmployeeFilter] = useState('all');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const timeSlots = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
+  // Fetch jobs from Supabase
+  const fetchJobs = useCallback(async () => {
+    try {
+      let companyId = user?.profile?.company_id;
+      if (!companyId) {
+        const { data: companyIdData } = await supabase.rpc('get_user_company_id');
+        companyId = companyIdData;
+      }
+      
+      if (!companyId) {
+        setIsLoading(false);
+        return;
+      }
+      
+      const { data, error } = await supabase
+        .from('jobs')
+        .select(`
+          id,
+          client_id,
+          cleaner_id,
+          scheduled_date,
+          start_time,
+          duration_minutes,
+          status,
+          job_type,
+          notes,
+          completed_at,
+          clients(id, name),
+          profiles:cleaner_id(id, first_name, last_name),
+          client_locations(address, city)
+        `)
+        .eq('company_id', companyId)
+        .order('scheduled_date', { ascending: true });
+      
+      if (error) {
+        console.error('Error fetching jobs:', error);
+        setIsLoading(false);
+        return;
+      }
+      
+      const mappedJobs: ScheduledJob[] = (data || []).map((job: any) => ({
+        id: job.id,
+        clientId: job.client_id,
+        clientName: job.clients?.name || 'Unknown',
+        address: job.client_locations?.address 
+          ? `${job.client_locations.address}${job.client_locations.city ? `, ${job.client_locations.city}` : ''}`
+          : 'No address',
+        date: job.scheduled_date,
+        time: job.start_time?.slice(0, 5) || '09:00',
+        duration: job.duration_minutes ? `${job.duration_minutes / 60}h` : '2h',
+        employeeId: job.cleaner_id || '',
+        employeeName: job.profiles 
+          ? `${job.profiles.first_name || ''} ${job.profiles.last_name || ''}`.trim() || 'Unassigned'
+          : 'Unassigned',
+        status: job.status as JobStatus,
+        services: [job.job_type || 'Standard Clean'],
+        notes: job.notes,
+        completedAt: job.completed_at,
+      }));
+      
+      setJobs(mappedJobs);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error in fetchJobs:', error);
+      setIsLoading(false);
+    }
+  }, [user]);
+
+  // Fetch absence requests
+  const fetchAbsenceRequests = useCallback(async () => {
+    try {
+      let companyId = user?.profile?.company_id;
+      if (!companyId) {
+        const { data: companyIdData } = await supabase.rpc('get_user_company_id');
+        companyId = companyIdData;
+      }
+      
+      if (!companyId) return;
+      
+      const { data, error } = await supabase
+        .from('absence_requests')
+        .select(`
+          id,
+          cleaner_id,
+          start_date,
+          end_date,
+          reason,
+          status,
+          created_at,
+          profiles:cleaner_id(first_name, last_name)
+        `)
+        .eq('company_id', companyId)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching absence requests:', error);
+        return;
+      }
+      
+      const mappedRequests: AbsenceRequest[] = (data || []).map((req: any) => ({
+        id: req.id,
+        employeeId: req.cleaner_id,
+        employeeName: req.profiles 
+          ? `${req.profiles.first_name || ''} ${req.profiles.last_name || ''}`.trim() || 'Unknown'
+          : 'Unknown',
+        startDate: req.start_date,
+        endDate: req.end_date,
+        reason: req.reason || '',
+        status: req.status,
+        createdAt: req.created_at,
+      }));
+      
+      setAbsenceRequests(mappedRequests);
+    } catch (error) {
+      console.error('Error in fetchAbsenceRequests:', error);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchJobs();
+      fetchAbsenceRequests();
+    }
+  }, [user, fetchJobs, fetchAbsenceRequests]);
 
   const filteredJobs = employeeFilter === 'all' 
     ? jobs 
@@ -87,7 +259,7 @@ const Schedule = () => {
     } else if (view === 'week') {
       setCurrentDate(subWeeks(currentDate, 1));
     } else {
-      setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() - 1)));
+      setCurrentDate(subDays(currentDate, 1));
     }
   };
 
@@ -97,35 +269,87 @@ const Schedule = () => {
     } else if (view === 'week') {
       setCurrentDate(addWeeks(currentDate, 1));
     } else {
-      setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() + 1)));
+      setCurrentDate(addDays(currentDate, 1));
     }
   };
 
-  // Get days for month view
   const getMonthDays = () => {
     const start = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 1 });
     const end = endOfWeek(endOfMonth(currentDate), { weekStartsOn: 1 });
     return eachDayOfInterval({ start, end });
   };
 
-  // Get days for week view
   const getWeekDays = () => {
     const start = startOfWeek(currentDate, { weekStartsOn: 1 });
     const end = endOfWeek(currentDate, { weekStartsOn: 1 });
     return eachDayOfInterval({ start, end });
   };
 
-  // Handle day click - opens AddJobModal with date pre-filled
-  const handleDayClick = (date: Date) => {
+  // Handle time slot click - opens AddJobModal with date AND time pre-filled
+  const handleTimeSlotClick = (date: Date, time: string) => {
     setSelectedDate(date);
+    setSelectedTime(time);
     setShowAddJob(true);
   };
 
-  const handleAddJob = (job: Omit<ScheduledJob, 'id'>) => {
-    addJob(job);
-    logActivity('job_created', `Job created for ${job.clientName}`, undefined, job.clientName);
-    toast.success('Job scheduled successfully');
-    setSelectedDate(null);
+  // Handle day click (without specific time)
+  const handleDayClick = (date: Date) => {
+    setSelectedDate(date);
+    setSelectedTime(null);
+    setShowAddJob(true);
+  };
+
+  const handleAddJob = async (jobData: Omit<ScheduledJob, 'id'>) => {
+    try {
+      let companyId = user?.profile?.company_id;
+      if (!companyId) {
+        const { data: companyIdData } = await supabase.rpc('get_user_company_id');
+        companyId = companyIdData;
+      }
+      
+      if (!companyId) {
+        toast.error('Unable to identify company');
+        return;
+      }
+      
+      // Parse duration to minutes
+      const durationMatch = jobData.duration.match(/(\d+\.?\d*)/);
+      const durationMinutes = durationMatch ? parseFloat(durationMatch[1]) * 60 : 120;
+      
+      const { data, error } = await supabase
+        .from('jobs')
+        .insert({
+          company_id: companyId,
+          client_id: jobData.clientId,
+          cleaner_id: jobData.employeeId || null,
+          scheduled_date: jobData.date,
+          start_time: jobData.time,
+          duration_minutes: durationMinutes,
+          status: 'scheduled',
+          job_type: jobData.services[0] || 'Standard Clean',
+          notes: jobData.notes,
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error creating job:', error);
+        toast.error('Failed to create job');
+        return;
+      }
+      
+      logActivity('job_created', `Job created for ${jobData.clientName}`, undefined, jobData.clientName);
+      toast.success('Job scheduled successfully');
+      
+      // Refresh jobs list
+      await fetchJobs();
+      
+      setSelectedDate(null);
+      setSelectedTime(null);
+    } catch (error) {
+      console.error('Error in handleAddJob:', error);
+      toast.error('Failed to create job');
+    }
   };
 
   const handleEditJob = (job: ScheduledJob) => {
@@ -133,92 +357,185 @@ const Schedule = () => {
     setSelectedJob(null);
   };
 
-  const handleUpdateJob = (updatedJob: Omit<ScheduledJob, 'id'>) => {
-    if (editingJob) {
-      updateJob(editingJob.id, updatedJob);
-      logActivity('job_updated', `Job updated for ${updatedJob.clientName}`, editingJob.id, updatedJob.clientName);
+  const handleUpdateJob = async (updatedJobData: Omit<ScheduledJob, 'id'>) => {
+    if (!editingJob) return;
+    
+    try {
+      const durationMatch = updatedJobData.duration.match(/(\d+\.?\d*)/);
+      const durationMinutes = durationMatch ? parseFloat(durationMatch[1]) * 60 : 120;
+      
+      const { error } = await supabase
+        .from('jobs')
+        .update({
+          client_id: updatedJobData.clientId,
+          cleaner_id: updatedJobData.employeeId || null,
+          scheduled_date: updatedJobData.date,
+          start_time: updatedJobData.time,
+          duration_minutes: durationMinutes,
+          job_type: updatedJobData.services[0] || 'Standard Clean',
+          notes: updatedJobData.notes,
+        })
+        .eq('id', editingJob.id);
+      
+      if (error) {
+        console.error('Error updating job:', error);
+        toast.error('Failed to update job');
+        return;
+      }
+      
+      logActivity('job_updated', `Job updated for ${updatedJobData.clientName}`, editingJob.id, updatedJobData.clientName);
       toast.success('Job updated successfully');
+      
+      await fetchJobs();
       setEditingJob(null);
+    } catch (error) {
+      console.error('Error in handleUpdateJob:', error);
+      toast.error('Failed to update job');
     }
   };
 
-  const handleDeleteJob = () => {
-    if (jobToDelete) {
-      deleteJob(jobToDelete.id);
+  const handleDeleteJob = async () => {
+    if (!jobToDelete) return;
+    
+    try {
+      const { error } = await supabase
+        .from('jobs')
+        .delete()
+        .eq('id', jobToDelete.id);
+      
+      if (error) {
+        console.error('Error deleting job:', error);
+        toast.error('Failed to delete job');
+        return;
+      }
+      
       logActivity('job_cancelled', `Job cancelled for ${jobToDelete.clientName}`, jobToDelete.id, jobToDelete.clientName);
       toast.success('Job deleted successfully');
+      
+      await fetchJobs();
       setJobToDelete(null);
       setSelectedJob(null);
+    } catch (error) {
+      console.error('Error in handleDeleteJob:', error);
+      toast.error('Failed to delete job');
     }
   };
 
-  const handleCompleteJob = (jobId: string, afterPhoto?: string, notes?: string) => {
-    completeJob(jobId, afterPhoto);
-    const job = jobs.find(j => j.id === jobId);
-    if (job) {
-      logActivity('job_completed', `Job completed for ${job.clientName}`, jobId, job.clientName);
+  const handleCompleteJob = async (jobId: string, afterPhoto?: string, notes?: string) => {
+    try {
+      const { error } = await supabase
+        .from('jobs')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', jobId);
       
-      // Auto-generate invoice for completed job
-      const existingInvoice = getInvoiceByJobId(jobId);
-      if (!existingInvoice) {
-        const durationHours = parseFloat(job.duration.replace(/[^0-9.]/g, '')) || 2;
-        const hourlyRate = estimateConfig.defaultHourlyRate || 35;
-        const subtotal = durationHours * hourlyRate;
-        const taxRate = estimateConfig.taxRate || 13;
-        const taxAmount = subtotal * (taxRate / 100);
-        const total = subtotal + taxAmount;
-
-        const invoice = addInvoice({
-          clientId: job.clientId || crypto.randomUUID(),
-          clientName: job.clientName,
-          clientAddress: job.address,
-          serviceAddress: job.address,
-          jobId: jobId,
-          cleanerName: job.employeeName,
-          cleanerId: job.employeeId,
-          serviceDate: job.date,
-          serviceDuration: job.duration,
-          dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          lineItems: [
-            {
-              id: crypto.randomUUID(),
-              description: `Cleaning Service - ${job.clientName}`,
-              quantity: durationHours,
-              unitPrice: hourlyRate,
-              total: subtotal
-            }
-          ],
-          subtotal,
-          taxRate,
-          taxAmount,
-          total,
-          status: 'draft',
-          notes: notes || ''
-        });
-        
-        logActivity('job_completed', `Invoice ${invoice.invoiceNumber} generated for ${job.clientName}`, invoice.id, job.clientName);
-        toast.success(`Invoice ${invoice.invoiceNumber} generated`);
+      if (error) {
+        console.error('Error completing job:', error);
+        toast.error('Failed to complete job');
+        return;
       }
+      
+      const job = jobs.find(j => j.id === jobId);
+      if (job) {
+        logActivity('job_completed', `Job completed for ${job.clientName}`, jobId, job.clientName);
+        
+        // Auto-generate invoice
+        const existingInvoice = getInvoiceByJobId(jobId);
+        if (!existingInvoice) {
+          const durationHours = parseFloat(job.duration.replace(/[^0-9.]/g, '')) || 2;
+          const hourlyRate = estimateConfig.defaultHourlyRate || 35;
+          const subtotal = durationHours * hourlyRate;
+          const taxRate = estimateConfig.taxRate || 13;
+          const taxAmount = subtotal * (taxRate / 100);
+          const total = subtotal + taxAmount;
+
+          const invoice = addInvoice({
+            clientId: job.clientId || crypto.randomUUID(),
+            clientName: job.clientName,
+            clientAddress: job.address,
+            serviceAddress: job.address,
+            jobId: jobId,
+            cleanerName: job.employeeName,
+            cleanerId: job.employeeId,
+            serviceDate: job.date,
+            serviceDuration: job.duration,
+            dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            lineItems: [
+              {
+                id: crypto.randomUUID(),
+                description: `Cleaning Service - ${job.clientName}`,
+                quantity: durationHours,
+                unitPrice: hourlyRate,
+                total: subtotal
+              }
+            ],
+            subtotal,
+            taxRate,
+            taxAmount,
+            total,
+            status: 'draft',
+            notes: notes || ''
+          });
+          
+          toast.success(`Invoice ${invoice.invoiceNumber} generated`);
+        }
+      }
+      
+      toast.success(t.job.jobCompleted);
+      await fetchJobs();
+      setSelectedJob(null);
+    } catch (error) {
+      console.error('Error in handleCompleteJob:', error);
+      toast.error('Failed to complete job');
     }
-    toast.success(t.job.jobCompleted);
-    setSelectedJob(null);
   };
 
-  const handleAbsenceRequest = (request: { startDate: string; endDate: string; reason: string }) => {
-    addAbsenceRequest({
-      employeeId: 'current-user',
-      employeeName: 'Current User',
-      ...request,
-    });
-    logActivity('absence_requested', `Absence request submitted for ${request.startDate} - ${request.endDate}`);
-    toast.success(t.schedule.absenceSubmitted);
+  const handleAbsenceRequest = async (request: { startDate: string; endDate: string; reason: string }) => {
+    try {
+      let companyId = user?.profile?.company_id;
+      if (!companyId) {
+        const { data: companyIdData } = await supabase.rpc('get_user_company_id');
+        companyId = companyIdData;
+      }
+      
+      if (!companyId || !user?.id) {
+        toast.error('Unable to submit request');
+        return;
+      }
+      
+      const { error } = await supabase
+        .from('absence_requests')
+        .insert({
+          company_id: companyId,
+          cleaner_id: user.id,
+          start_date: request.startDate,
+          end_date: request.endDate,
+          reason: request.reason,
+          status: 'pending',
+        });
+      
+      if (error) {
+        console.error('Error submitting absence request:', error);
+        toast.error('Failed to submit absence request');
+        return;
+      }
+      
+      logActivity('absence_requested', `Absence request submitted for ${request.startDate} - ${request.endDate}`);
+      toast.success(t.schedule.absenceSubmitted);
+      
+      await fetchAbsenceRequests();
+    } catch (error) {
+      console.error('Error in handleAbsenceRequest:', error);
+      toast.error('Failed to submit absence request');
+    }
   };
 
   const handleSendSchedule = () => {
     toast.success(t.schedule.scheduleSent);
   };
 
-  // Invoice actions for completed jobs
   const handleViewInvoice = (job: ScheduledJob) => {
     const invoice = getInvoiceByJobId(job.id);
     if (invoice) {
@@ -232,7 +549,6 @@ const Schedule = () => {
     const invoice = getInvoiceByJobId(job.id);
     if (invoice) {
       toast.success(`Invoice ${invoice.invoiceNumber} sent via email`);
-      logActivity('job_completed', `Invoice sent via email to ${job.clientName}`, job.id, job.clientName);
     }
   };
 
@@ -240,11 +556,9 @@ const Schedule = () => {
     const invoice = getInvoiceByJobId(job.id);
     if (invoice) {
       toast.success(`Invoice ${invoice.invoiceNumber} sent via SMS`);
-      logActivity('job_completed', `Invoice sent via SMS to ${job.clientName}`, job.id, job.clientName);
     }
   };
 
-  // Get jobs for a specific date
   const getJobsForDate = (date: Date) => {
     return filteredJobs.filter(job => {
       const jobDate = new Date(job.date);
@@ -252,13 +566,19 @@ const Schedule = () => {
     });
   };
 
-  // Safe checklist access helper
-  const getJobChecklist = (job: ScheduledJob | null) => {
-    if (!job) return [];
-    if (!job.checklist) return [];
-    if (!Array.isArray(job.checklist)) return [];
-    return job.checklist;
+  // Format time for display (AM/PM)
+  const formatTimeDisplay = (time24: string) => {
+    const slot = TIME_SLOTS.find(s => s.value === time24);
+    return slot?.label || time24;
   };
+
+  if (isLoading) {
+    return (
+      <div className="p-4 lg:p-6 max-w-7xl mx-auto flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-6">
@@ -365,7 +685,6 @@ const Schedule = () => {
           {view === 'month' && (
             <Card className="border-border/50">
               <CardContent className="p-0">
-                {/* Header */}
                 <div className="grid grid-cols-7 border-b border-border/50">
                   {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
                     <div key={day} className="p-2 text-center text-xs font-medium text-muted-foreground border-r border-border/50 last:border-r-0">
@@ -373,7 +692,6 @@ const Schedule = () => {
                     </div>
                   ))}
                 </div>
-                {/* Days Grid */}
                 <div className="grid grid-cols-7">
                   {getMonthDays().map((day, idx) => {
                     const dayJobs = getJobsForDate(day);
@@ -425,7 +743,6 @@ const Schedule = () => {
           {view === 'week' && (
             <Card className="border-border/50 overflow-hidden">
               <CardContent className="p-0">
-                {/* Week header with days */}
                 <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border/50">
                   <div className="p-2 text-center text-sm text-muted-foreground border-r border-border/50 flex items-center justify-center">
                     <Clock className="h-4 w-4" />
@@ -448,20 +765,19 @@ const Schedule = () => {
                   ))}
                 </div>
                 
-                {/* Time slots grid */}
                 <div className="max-h-[400px] overflow-y-auto">
-                  {timeSlots.map((time) => (
-                    <div key={time} className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border/20 last:border-b-0">
+                  {TIME_SLOTS.map((slot) => (
+                    <div key={slot.value} className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border/20 last:border-b-0">
                       <div className="p-2 text-xs text-muted-foreground border-r border-border/30 bg-muted/20 flex items-start justify-center">
-                        {time}
+                        {slot.label}
                       </div>
                       {getWeekDays().map((day) => {
-                        const dayJobs = getJobsForDate(day).filter(j => j.time === time);
+                        const dayJobs = getJobsForDate(day).filter(j => j.time === slot.value);
                         return (
                           <div 
-                            key={`${day.toISOString()}-${time}`} 
+                            key={`${day.toISOString()}-${slot.value}`} 
                             className="p-1 border-r border-border/20 last:border-r-0 min-h-[48px] hover:bg-muted/30 transition-colors cursor-pointer"
-                            onClick={() => handleDayClick(day)}
+                            onClick={() => handleTimeSlotClick(day, slot.value)}
                           >
                             {dayJobs.map((job) => (
                               <div 
@@ -494,15 +810,15 @@ const Schedule = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {timeSlots.map((time) => {
-                    const timeJobs = getJobsForDate(currentDate).filter(j => j.time === time);
+                  {TIME_SLOTS.map((slot) => {
+                    const timeJobs = getJobsForDate(currentDate).filter(j => j.time === slot.value);
                     return (
                       <div 
-                        key={time} 
+                        key={slot.value} 
                         className="flex gap-3 p-2 rounded-lg hover:bg-muted/30 cursor-pointer"
-                        onClick={() => handleDayClick(currentDate)}
+                        onClick={() => handleTimeSlotClick(currentDate, slot.value)}
                       >
-                        <div className="w-16 text-sm text-muted-foreground shrink-0">{time}</div>
+                        <div className="w-20 text-sm text-muted-foreground shrink-0">{slot.label}</div>
                         <div className="flex-1 space-y-1">
                           {timeJobs.map((job) => (
                             <div 
@@ -554,7 +870,7 @@ const Schedule = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className="text-center">
-                              <p className="text-lg font-semibold">{job.time}</p>
+                              <p className="text-lg font-semibold">{formatTimeDisplay(job.time)}</p>
                               <p className="text-xs text-muted-foreground">{job.duration}</p>
                             </div>
                             <div className="h-10 w-px bg-border" />
@@ -665,7 +981,7 @@ const Schedule = () => {
                   <Clock className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="text-xs text-muted-foreground">{t.job.time}</p>
-                    <p className="text-sm font-medium">{selectedJob.time} ({selectedJob.duration})</p>
+                    <p className="text-sm font-medium">{formatTimeDisplay(selectedJob.time)} ({selectedJob.duration})</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
@@ -677,44 +993,6 @@ const Schedule = () => {
                 </div>
               </div>
 
-              {/* Safe checklist rendering */}
-              {getJobChecklist(selectedJob).length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-primary" />
-                    {t.job.checklist}
-                  </h4>
-                  <div className="space-y-1">
-                    {getJobChecklist(selectedJob).map((item, i) => (
-                      <div key={i} className="flex items-center gap-2 text-sm">
-                        <div className={cn(
-                          "h-4 w-4 rounded-full border-2 flex items-center justify-center",
-                          item.completed ? "border-success bg-success" : "border-border"
-                        )}>
-                          {item.completed && <CheckCircle className="h-3 w-3 text-success-foreground" />}
-                        </div>
-                        <span className={item.completed ? "text-muted-foreground line-through" : ""}>{item.item}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {selectedJob.beforePhoto && (
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium flex items-center gap-2">
-                    <Camera className="h-4 w-4 text-primary" />
-                    {t.dashboard.beforeAfter}
-                  </h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    <img src={selectedJob.beforePhoto} alt="Before" className="rounded-lg w-full h-24 object-cover" />
-                    {selectedJob.afterPhoto && (
-                      <img src={selectedJob.afterPhoto} alt="After" className="rounded-lg w-full h-24 object-cover" />
-                    )}
-                  </div>
-                </div>
-              )}
-
               <div className="flex flex-wrap gap-2 pt-2">
                 {selectedJob.status === 'scheduled' && (
                   <Button className="flex-1 gap-2" onClick={() => { setShowCompletion(true); }}>
@@ -723,7 +1001,6 @@ const Schedule = () => {
                   </Button>
                 )}
                 
-                {/* Invoice actions for completed jobs */}
                 {selectedJob.status === 'completed' && (
                   <>
                     <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleViewInvoice(selectedJob)}>
@@ -766,11 +1043,13 @@ const Schedule = () => {
             setShowAddJob(false);
             setEditingJob(null);
             setSelectedDate(null);
+            setSelectedTime(null);
           }
         }}
         onSave={editingJob ? handleUpdateJob : handleAddJob}
         job={editingJob || undefined}
         preselectedDate={selectedDate}
+        preselectedTime={selectedTime}
       />
 
       {/* Job Completion Modal */}
