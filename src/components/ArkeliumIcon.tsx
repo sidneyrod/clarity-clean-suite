@@ -24,10 +24,6 @@ const ArkeliumIcon = ({ className, size = 'md' }: ArkeliumIconProps) => {
         src={arkeliumLogo}
         alt="Arkelium"
         className="w-full h-full object-contain"
-        style={{ 
-          mixBlendMode: 'multiply',
-          filter: 'none'
-        }}
       />
     </div>
   );
