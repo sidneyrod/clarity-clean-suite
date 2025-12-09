@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 
 export interface PayrollPeriod {
   id: string;
@@ -76,6 +76,11 @@ export function usePayroll() {
   // Fetch company ID
   const getCompanyId = useCallback(async () => {
     if (!user) return null;
+    // Try getting from user profile first
+    if (user.profile?.company_id) {
+      return user.profile.company_id;
+    }
+    // Fallback to database query
     const { data } = await supabase
       .from('profiles')
       .select('company_id')
@@ -286,12 +291,12 @@ export function usePayroll() {
         })
         .eq('id', period.id);
 
-      toast.success('Payroll period generated successfully');
+      toast({ title: 'Success', description: 'Payroll period generated successfully' });
       await fetchPeriods();
       return period;
     } catch (error: any) {
       console.error('Error generating payroll:', error);
-      toast.error('Failed to generate payroll: ' + error.message);
+      toast({ title: 'Error', description: 'Failed to generate payroll: ' + error.message, variant: 'destructive' });
       return null;
     } finally {
       setIsGenerating(false);
@@ -312,11 +317,11 @@ export function usePayroll() {
       .eq('id', periodId);
 
     if (error) {
-      toast.error('Failed to approve payroll');
+      toast({ title: 'Error', description: 'Failed to approve payroll', variant: 'destructive' });
       return;
     }
 
-    toast.success('Payroll approved successfully');
+    toast({ title: 'Success', description: 'Payroll approved successfully' });
     await fetchPeriods();
   }, [user, fetchPeriods]);
 
@@ -331,11 +336,11 @@ export function usePayroll() {
       .eq('id', periodId);
 
     if (error) {
-      toast.error('Failed to mark as paid');
+      toast({ title: 'Error', description: 'Failed to mark as paid', variant: 'destructive' });
       return;
     }
 
-    toast.success('Payroll marked as paid');
+    toast({ title: 'Success', description: 'Payroll marked as paid' });
     await fetchPeriods();
   }, [fetchPeriods]);
 
