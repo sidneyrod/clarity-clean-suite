@@ -130,10 +130,10 @@ const Users = () => {
   );
 
   const handleAddUser = async (userData: UserFormData) => {
-    // For now, just refresh the list after modal handles creation
-    // The AddUserModal should handle the Supabase insert
-    fetchUsers();
+    // Refresh the list after modal handles creation/update
+    await fetchUsers();
     setEditUser(null);
+    setIsAddModalOpen(false);
   };
 
   const handleDeleteUser = async () => {

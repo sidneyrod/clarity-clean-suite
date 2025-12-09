@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 import { User, Mail, Phone, MapPin, Shield, DollarSign, Briefcase, Loader2 } from 'lucide-react';
 import { userSchema, validateForm } from '@/lib/validations';
 import { CanadianProvince, EmploymentType, provinceNames } from '@/stores/payrollStore';
@@ -77,7 +77,7 @@ const AddUserModal = ({ open, onOpenChange, onSubmit, editUser }: AddUserModalPr
     if (!validation.success) {
       const validationErrors = (validation as { success: false; errors: Record<string, string> }).errors;
       setErrors(validationErrors);
-      toast.error(t.common.error, { description: Object.values(validationErrors)[0] });
+      toast({ title: t.common.error, description: Object.values(validationErrors)[0], variant: 'destructive' });
       return;
     }
     
@@ -86,7 +86,7 @@ const AddUserModal = ({ open, onOpenChange, onSubmit, editUser }: AddUserModalPr
 
     const companyId = user?.profile?.company_id;
     if (!companyId) {
-      toast.error('Error', { description: 'No company found' });
+      toast({ title: 'Error', description: 'No company found', variant: 'destructive' });
       setIsLoading(false);
       return;
     }
@@ -124,11 +124,11 @@ const AddUserModal = ({ open, onOpenChange, onSubmit, editUser }: AddUserModalPr
 
         if (roleError) throw roleError;
 
-        toast.success(t.users.userUpdated);
+        toast({ title: t.common.success, description: t.users.userUpdated });
       } else {
         // For new users, we need admin to create via Supabase Auth admin API
         // For now, just create profile and role (user already exists in auth)
-        toast.info('Note: User must already exist in authentication system. Profile updated.');
+        toast({ title: 'Note', description: 'User must already exist in authentication system. Profile updated.' });
       }
 
       onSubmit(formData);
@@ -136,7 +136,7 @@ const AddUserModal = ({ open, onOpenChange, onSubmit, editUser }: AddUserModalPr
       onOpenChange(false);
     } catch (err) {
       console.error('Error saving user:', err);
-      toast.error('Error', { description: 'Failed to save user' });
+      toast({ title: 'Error', description: 'Failed to save user', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }

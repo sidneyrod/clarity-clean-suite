@@ -282,32 +282,80 @@ const Company = () => {
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !companyId) return;
+    if (!file || !companyId) {
+      toast({
+        title: 'Error',
+        description: 'No file selected or company not found',
+        variant: 'destructive'
+      });
+      return;
+    }
 
     try {
-      const fileExt = file.name.split('.').pop();
+      const fileExt = file.name.split('.').pop()?.toLowerCase();
+      const validExtensions = ['png', 'jpg', 'jpeg', 'svg', 'webp'];
+      
+      if (!fileExt || !validExtensions.includes(fileExt)) {
+        toast({
+          title: 'Error',
+          description: 'Invalid file format. Please use PNG, JPG, SVG, or WebP.',
+          variant: 'destructive'
+        });
+        return;
+      }
+
       const fileName = `${companyId}/logo.${fileExt}`;
       
-      const { error: uploadError } = await supabase.storage
+      // Try to remove existing file first (ignore errors)
+      await supabase.storage
         .from('company-assets')
-        .upload(fileName, file, { upsert: true });
+        .remove([fileName]);
+      
+      const { error: uploadError, data: uploadData } = await supabase.storage
+        .from('company-assets')
+        .upload(fileName, file, { 
+          upsert: true,
+          cacheControl: '3600',
+          contentType: file.type
+        });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Upload error details:', uploadError);
+        throw new Error(uploadError.message || 'Upload failed');
+      }
 
       const { data: { publicUrl } } = supabase.storage
         .from('company-assets')
         .getPublicUrl(fileName);
 
+      // Update branding with new logo URL
       setBranding(prev => ({ ...prev, logo_url: publicUrl }));
+      
+      // Also save to database immediately
+      const { error: brandingError } = await supabase
+        .from('company_branding')
+        .upsert({
+          id: branding.id,
+          company_id: companyId,
+          logo_url: publicUrl,
+          primary_color: branding.primary_color,
+          secondary_color: branding.secondary_color,
+          accent_color: branding.accent_color
+        }, { onConflict: 'company_id' });
+
+      if (brandingError) {
+        console.error('Branding update error:', brandingError);
+      }
+
       toast({
         title: t.common.success,
         description: 'Logo uploaded successfully',
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading logo:', error);
       toast({
         title: 'Error',
-        description: 'Failed to upload logo',
+        description: error.message || 'Failed to upload logo. Please check storage permissions.',
         variant: 'destructive'
       });
     }

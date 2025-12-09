@@ -106,6 +106,7 @@ export function GeneratePayrollDialog({
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
+                className="bg-background text-foreground [color-scheme:dark] dark:[color-scheme:dark]"
               />
             </div>
             <div className="space-y-2">
@@ -114,6 +115,7 @@ export function GeneratePayrollDialog({
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
+                className="bg-background text-foreground [color-scheme:dark] dark:[color-scheme:dark]"
               />
             </div>
           </div>
