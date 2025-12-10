@@ -26,6 +26,8 @@ import NotFound from "./pages/NotFound";
 import OffRequests from "./pages/OffRequests";
 import CleanerOffRequests from "./pages/CleanerOffRequests";
 import VisitHistory from "./pages/VisitHistory";
+import Absences from "./pages/Absences";
+import Availability from "./pages/Availability";
 
 const queryClient = new QueryClient();
 
@@ -156,6 +158,12 @@ const AppRoutes = () => {
         
         {/* Visit History - all users (RLS filters by role) */}
         <Route path="/visit-history" element={<ProtectedRoute><VisitHistory /></ProtectedRoute>} />
+        
+        {/* Absences - Admin/Manager view of all absences */}
+        <Route path="/absences" element={<AdminManagerRoute><Absences /></AdminManagerRoute>} />
+        
+        {/* Availability - Admin only */}
+        <Route path="/availability" element={<AdminRoute><Availability /></AdminRoute>} />
         
         {/* Admin/Manager routes */}
         <Route path="/clients" element={<AdminManagerRoute><Clients /></AdminManagerRoute>} />
