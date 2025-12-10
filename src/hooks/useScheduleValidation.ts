@@ -68,7 +68,7 @@ export const useScheduleValidation = () => {
         if (absences && absences.length > 0) {
           return {
             isValid: false,
-            message: 'Este funcionário possui ausência aprovada para esta data. Não é possível agendar.'
+            message: 'This employee has an approved absence for this date. Cannot schedule.'
           };
         }
       }
@@ -105,7 +105,7 @@ export const useScheduleValidation = () => {
         if (existingJob.client_id === clientId && existingJob.cleaner_id === employeeId) {
           return {
             isValid: false,
-            message: 'Já existe um agendamento para este cliente com este cleaner neste horário.'
+            message: 'A job already exists for this client with this cleaner at this time.'
           };
         }
         
@@ -113,10 +113,10 @@ export const useScheduleValidation = () => {
         if (existingJob.cleaner_id === employeeId) {
           const cleanerName = existingJob.profiles 
             ? `${(existingJob.profiles as any).first_name || ''} ${(existingJob.profiles as any).last_name || ''}`.trim()
-            : 'Este cleaner';
+            : 'This cleaner';
           return {
             isValid: false,
-            message: `${cleanerName} já está agendado neste horário.`
+            message: `${cleanerName} is already scheduled at this time.`
           };
         }
       }
@@ -188,7 +188,7 @@ export const useScheduleValidation = () => {
     if (job.status === 'completed' || job.completedAt) {
       return {
         isValid: false,
-        message: 'Este serviço já foi finalizado. Não é possível alterar.'
+        message: 'This job has already been completed. Cannot modify.'
       };
     }
     return { isValid: true };
@@ -214,7 +214,7 @@ export const useScheduleValidation = () => {
         if (emailMatch && emailMatch.length > 0) {
           return {
             isValid: false,
-            message: `Já existe um cliente com este e-mail: ${emailMatch[0].name}`
+            message: `A client with this email already exists: ${emailMatch[0].name}`
           };
         }
       }
@@ -232,7 +232,7 @@ export const useScheduleValidation = () => {
         if (namePhoneMatch && namePhoneMatch.length > 0) {
           return {
             isValid: false,
-            message: 'Já existe um cliente com este nome e telefone.'
+            message: 'A client with this name and phone already exists.'
           };
         }
       }
@@ -278,7 +278,7 @@ export const useScheduleValidation = () => {
       if (totalRelated > 0) {
         return {
           isValid: false,
-          message: 'Este cliente possui histórico de serviços, faturas ou contratos. Apenas inativação é permitida.'
+          message: 'This client has jobs, invoices, or contracts history. Only deactivation is allowed.'
         };
       }
       
@@ -309,7 +309,7 @@ export const useScheduleValidation = () => {
         const userName = `${existingUsers[0].first_name || ''} ${existingUsers[0].last_name || ''}`.trim();
         return {
           isValid: false,
-          message: `Já existe um usuário com este e-mail: ${userName || 'Usuário existente'}`
+          message: `A user with this email already exists: ${userName || 'Existing user'}`
         };
       }
       
@@ -373,7 +373,7 @@ export const useScheduleValidation = () => {
       if (activeContracts && activeContracts.length > 0) {
         return {
           isValid: false,
-          message: `Este cliente já possui um contrato ativo (${activeContracts[0].contract_number}). Apenas 1 contrato ativo é permitido por cliente.`
+          message: `This client already has an active contract (${activeContracts[0].contract_number}). Only 1 active contract per client is allowed.`
         };
       }
       
@@ -413,7 +413,7 @@ export const useScheduleValidation = () => {
       if (allExpired) {
         return {
           isValid: false,
-          message: 'O contrato deste cliente está vencido. Renove o contrato antes de agendar novos serviços.'
+          message: 'This client\'s contract has expired. Renew the contract before scheduling new jobs.'
         };
       }
       

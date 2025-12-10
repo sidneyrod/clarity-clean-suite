@@ -45,10 +45,20 @@ const Availability = () => {
 
   useEffect(() => {
     fetchAvailabilities();
-  }, [user?.companyId]);
+  }, [user?.profile?.company_id]);
 
   const fetchAvailabilities = async () => {
-    if (!user?.companyId) return;
+    let companyId = user?.profile?.company_id;
+    
+    if (!companyId) {
+      const { data: companyIdData } = await supabase.rpc('get_user_company_id');
+      companyId = companyIdData;
+    }
+    
+    if (!companyId) {
+      setLoading(false);
+      return;
+    }
 
     try {
       const { data, error } = await supabase
@@ -57,7 +67,7 @@ const Availability = () => {
           *,
           cleaner:profiles!cleaner_availability_cleaner_id_fkey(first_name, last_name, email)
         `)
-        .eq('company_id', user.companyId)
+        .eq('company_id', companyId)
         .order('cleaner_id')
         .order('day_of_week');
 
@@ -107,7 +117,7 @@ const Availability = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-6">
       <PageHeader
         title="Availability"
         description="Manage employee weekly availability schedules"
