@@ -369,15 +369,21 @@ const Schedule = () => {
   };
 
   // Handle time slot click - opens AddJobModal with date AND time pre-filled
+  // Create a new Date at noon to avoid timezone issues
   const handleTimeSlotClick = (date: Date, time: string) => {
-    setSelectedDate(date);
+    // Create a new date at noon local time to avoid timezone issues
+    const safeDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0);
+    setSelectedDate(safeDate);
     setSelectedTime(time);
     setShowAddJob(true);
   };
 
   // Handle day click (without specific time)
+  // Create a new Date at noon to avoid timezone issues
   const handleDayClick = (date: Date) => {
-    setSelectedDate(date);
+    // Create a new date at noon local time to avoid timezone issues
+    const safeDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0);
+    setSelectedDate(safeDate);
     setSelectedTime(null);
     setShowAddJob(true);
   };
@@ -733,7 +739,6 @@ const Schedule = () => {
     <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-6">
       <PageHeader 
         title={t.schedule.title}
-        description={t.schedule.title}
         action={{
           label: t.schedule.addJob,
           icon: CalendarPlus,

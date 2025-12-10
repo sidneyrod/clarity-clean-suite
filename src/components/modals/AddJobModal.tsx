@@ -176,11 +176,15 @@ const AddJobModal = ({ open, onOpenChange, onSave, job, preselectedDate, presele
   useEffect(() => {
     if (open) {
       if (job) {
+        // Parse job date string to local date (avoid timezone issues)
+        const [year, month, day] = job.date.split('-').map(Number);
+        const jobDate = new Date(year, month - 1, day, 12, 0, 0);
+        
         setFormData({
           clientId: job.clientId,
           clientName: job.clientName,
           address: job.address,
-          date: new Date(job.date),
+          date: jobDate,
           time: job.time,
           duration: job.duration,
           employeeId: job.employeeId,
@@ -193,11 +197,29 @@ const AddJobModal = ({ open, onOpenChange, onSave, job, preselectedDate, presele
           visitRoute: '',
         });
       } else {
+        // For new jobs, use preselected date or today at noon
+        let initialDate = new Date();
+        if (preselectedDate) {
+          initialDate = new Date(
+            preselectedDate.getFullYear(), 
+            preselectedDate.getMonth(), 
+            preselectedDate.getDate(), 
+            12, 0, 0
+          );
+        } else {
+          initialDate = new Date(
+            initialDate.getFullYear(),
+            initialDate.getMonth(),
+            initialDate.getDate(),
+            12, 0, 0
+          );
+        }
+        
         setFormData({
           clientId: '',
           clientName: '',
           address: '',
-          date: preselectedDate || new Date(),
+          date: initialDate,
           time: preselectedTime || '09:00',
           duration: '2h',
           employeeId: '',
@@ -245,7 +267,9 @@ const AddJobModal = ({ open, onOpenChange, onSave, job, preselectedDate, presele
 
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
-      setFormData(prev => ({ ...prev, date }));
+      // Create date at noon to avoid timezone issues
+      const safeDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0);
+      setFormData(prev => ({ ...prev, date: safeDate }));
       setCalendarOpen(false);
     }
   };

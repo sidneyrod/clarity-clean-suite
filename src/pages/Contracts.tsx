@@ -14,6 +14,7 @@ import AddContractModal, { ContractFormData } from '@/components/modals/AddContr
 import ConfirmDialog from '@/components/modals/ConfirmDialog';
 import { toast } from '@/hooks/use-toast';
 import { generateContractPdf, openPdfPreview, ContractPdfData } from '@/utils/pdfGenerator';
+import { useScheduleValidation } from '@/hooks/useScheduleValidation';
 import { 
   FilePlus, 
   MapPin, 
@@ -266,6 +267,8 @@ const Contracts = () => {
     contract.location.toLowerCase().includes(search.toLowerCase())
   );
 
+  const { validateContractActive } = useScheduleValidation();
+
   const handleAddContract = async (contractData: ContractFormData) => {
     let companyId = user?.profile?.company_id;
     
@@ -292,6 +295,23 @@ const Contracts = () => {
         variant: 'destructive',
       });
       return;
+    }
+
+    // Validate: only 1 active contract per client
+    if (contractData.status === 'active') {
+      const validation = await validateContractActive(
+        contractData.clientId, 
+        companyId, 
+        editContract?.id
+      );
+      if (!validation.isValid) {
+        toast({
+          title: t.common.error,
+          description: validation.message,
+          variant: 'destructive',
+        });
+        return;
+      }
     }
     
     if (editContract) {

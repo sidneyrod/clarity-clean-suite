@@ -354,6 +354,110 @@ export const useScheduleValidation = () => {
     }
   }, []);
   
+  // Validate contract - only 1 active per client
+  const validateContractActive = useCallback(async (
+    clientId: string,
+    companyId: string,
+    excludeContractId?: string
+  ): Promise<ValidationResult> => {
+    
+    try {
+      const { data: activeContracts } = await supabase
+        .from('contracts')
+        .select('id, contract_number')
+        .eq('client_id', clientId)
+        .eq('company_id', companyId)
+        .eq('status', 'active')
+        .neq('id', excludeContractId || '');
+      
+      if (activeContracts && activeContracts.length > 0) {
+        return {
+          isValid: false,
+          message: `Este cliente já possui um contrato ativo (${activeContracts[0].contract_number}). Apenas 1 contrato ativo é permitido por cliente.`
+        };
+      }
+      
+      return { isValid: true };
+      
+    } catch (error) {
+      console.error('Error validating contract:', error);
+      return { isValid: true };
+    }
+  }, []);
+  
+  // Check if client has valid (non-expired) contract for scheduling
+  const canScheduleForClient = useCallback(async (
+    clientId: string,
+    companyId: string
+  ): Promise<ValidationResult> => {
+    
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Check for active contracts
+      const { data: contracts } = await supabase
+        .from('contracts')
+        .select('id, status, end_date')
+        .eq('client_id', clientId)
+        .eq('company_id', companyId)
+        .eq('status', 'active');
+      
+      if (!contracts || contracts.length === 0) {
+        // No active contract - allow scheduling but warn
+        return { isValid: true };
+      }
+      
+      // Check if any active contract is expired
+      const allExpired = contracts.every(c => c.end_date && c.end_date < today);
+      
+      if (allExpired) {
+        return {
+          isValid: false,
+          message: 'O contrato deste cliente está vencido. Renove o contrato antes de agendar novos serviços.'
+        };
+      }
+      
+      return { isValid: true };
+      
+    } catch (error) {
+      console.error('Error checking contract status:', error);
+      return { isValid: true };
+    }
+  }, []);
+  
+  // Log activity with before/after values for audit
+  const logAuditAction = useCallback(async (
+    action: string,
+    entityType: string,
+    entityId: string,
+    companyId: string,
+    userId: string | null,
+    details: {
+      before?: Record<string, any>;
+      after?: Record<string, any>;
+      description?: string;
+    }
+  ): Promise<void> => {
+    
+    try {
+      await supabase
+        .from('activity_logs')
+        .insert({
+          action,
+          entity_type: entityType,
+          entity_id: entityId,
+          company_id: companyId,
+          user_id: userId,
+          details: {
+            ...details,
+            timestamp: new Date().toISOString(),
+          },
+        });
+    } catch (error) {
+      console.error('Error logging audit action:', error);
+    }
+  }, []);
+  
   return {
     validateSchedule,
     getAvailableCleaners,
@@ -362,5 +466,8 @@ export const useScheduleValidation = () => {
     canDeleteClient,
     validateUserEmailDuplicate,
     getActiveContractForClient,
+    validateContractActive,
+    canScheduleForClient,
+    logAuditAction,
   };
 };
