@@ -1,7 +1,6 @@
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCompanyStore } from '@/stores/companyStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { 
   Home, 
@@ -19,18 +18,23 @@ import {
   Receipt,
   CalendarOff,
   CheckCircle,
-  MapPin
+  MapPin,
+  Briefcase,
+  Handshake,
+  DollarSign,
+  Clock,
+  CalendarX
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { useState, useEffect } from 'react';
 import arkeliumLogo from '@/assets/arkelium-logo.png';
+import SidebarMenuGroup, { MenuItem } from './SidebarMenuGroup';
 
 const Sidebar = () => {
   const { t } = useLanguage();
   const { hasRole } = useAuth();
-  const { branding, profile } = useCompanyStore();
   const { openTab } = useWorkspaceStore();
   const location = useLocation();
   const navigate = useNavigate();
@@ -48,66 +52,136 @@ const Sidebar = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Role checks using hasRole from AuthContext
+  // Role checks
   const isAdmin = hasRole(['admin']);
   const isAdminOrManager = hasRole(['admin', 'manager']);
   const isCleaner = hasRole(['cleaner']);
 
-  // Build nav items based on user role - ordered as per specification:
-  // 1. Home, 2. Schedule, 3. Clients, 4. Contracts, 5. Completed Services, 
-  // 6. Estimate, 7. Invoices, 8. Payroll, 9. Off Requests, 10. Activity Log,
-  // 11. Company, 12. Users, 13. Settings
-  const navItems = [
-    // 1. Home - all users
-    { path: '/', label: t.nav.home, icon: Home },
-    
-    // 2. Schedule - all users (cleaners see only their jobs)
-    { path: '/schedule', label: t.nav.schedule, icon: Calendar },
-    
-    // 3. Clients - Admin/Manager
-    ...(isAdminOrManager ? [{ path: '/clients', label: t.nav.clients, icon: UserCircle }] : []),
-    
-    // 4. Contracts - Admin/Manager
-    ...(isAdminOrManager ? [{ path: '/contracts', label: t.nav.contracts, icon: FileText }] : []),
-    
-    // 5. Completed Services - Admin/Manager
-    ...(isAdminOrManager ? [{ path: '/completed-services', label: 'Completed Services', icon: CheckCircle }] : []),
-    
-    // 5.5 Visit History - All users (cleaners see only their visits via RLS)
-    { path: '/visit-history', label: 'Visit History', icon: MapPin },
-    
-    // 6. Estimate - Admin/Manager
-    ...(isAdminOrManager ? [{ path: '/calculator', label: 'Estimate', icon: FileSpreadsheet }] : []),
-    
-    // 7. Invoices - Admin/Manager
-    ...(isAdminOrManager ? [{ path: '/invoices', label: 'Invoices', icon: Receipt }] : []),
-    
-    // 8. Payroll - Admin only
-    ...(isAdmin ? [{ path: '/payroll', label: t.nav.payroll, icon: Wallet }] : []),
-    
-    // 9. Off Requests - Admin/Manager see admin view, Cleaner sees own view
-    ...(isAdminOrManager 
-      ? [{ path: '/off-requests', label: 'Off Requests', icon: CalendarOff }] 
-      : isCleaner 
-        ? [{ path: '/my-off-requests', label: 'Off Requests', icon: CalendarOff }]
-        : []),
-    
-    // 10. Activity Log - Admin/Manager
-    ...(isAdminOrManager ? [{ path: '/activity-log', label: t.nav.activityLog, icon: ClipboardList }] : []),
-    
-    // 11. Company - Admin only
-    ...(isAdmin ? [{ path: '/company', label: t.nav.company, icon: Building2 }] : []),
-    
-    // 12. Users - Admin only
-    ...(isAdmin ? [{ path: '/users', label: t.nav.users, icon: Users }] : []),
-    
-    // 13. Settings - Admin only
-    ...(isAdmin ? [{ path: '/settings', label: t.nav.settings, icon: Settings }] : []),
-  ];
-
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/';
     return location.pathname.startsWith(path);
+  };
+
+  const handleNavClick = (path: string, label: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    openTab(path, label);
+    navigate(path);
+  };
+
+  // =====================
+  // MODULE 1: OPERATIONS
+  // =====================
+  const operationsItems: MenuItem[] = [];
+  
+  // Schedule - All users (cleaners see only their jobs)
+  operationsItems.push({ path: '/schedule', label: t.nav.schedule, icon: Calendar });
+  
+  // Completed Services - Admin/Manager only
+  if (isAdminOrManager) {
+    operationsItems.push({ path: '/completed-services', label: 'Completed Services', icon: CheckCircle });
+  }
+  
+  // Visit History - All users (filtered by RLS for cleaners)
+  operationsItems.push({ path: '/visit-history', label: 'Visit History', icon: MapPin });
+  
+  // Off Requests - Different routes by role
+  if (isAdminOrManager) {
+    operationsItems.push({ path: '/off-requests', label: 'Off Requests', icon: CalendarOff });
+  } else if (isCleaner) {
+    operationsItems.push({ path: '/my-off-requests', label: 'Off Requests', icon: CalendarOff });
+  }
+  
+  // Absences - Admin/Manager view of all absences
+  if (isAdminOrManager) {
+    operationsItems.push({ path: '/absences', label: 'Absences', icon: CalendarX });
+  }
+  
+  // Availability - Admin only can manage
+  if (isAdmin) {
+    operationsItems.push({ path: '/availability', label: 'Availability', icon: Clock });
+  }
+  
+  // Activity Log - Admin/Manager
+  if (isAdminOrManager) {
+    operationsItems.push({ path: '/activity-log', label: t.nav.activityLog, icon: ClipboardList });
+  }
+
+  // =============================
+  // MODULE 2: CLIENTS & CONTRACTS
+  // =============================
+  const clientsItems: MenuItem[] = [];
+  
+  if (isAdminOrManager) {
+    clientsItems.push({ path: '/clients', label: t.nav.clients, icon: UserCircle });
+    clientsItems.push({ path: '/contracts', label: t.nav.contracts, icon: FileText });
+    clientsItems.push({ path: '/calculator', label: 'Estimate', icon: FileSpreadsheet });
+  }
+
+  // =====================
+  // MODULE 3: FINANCIAL
+  // =====================
+  const financialItems: MenuItem[] = [];
+  
+  if (isAdminOrManager) {
+    financialItems.push({ path: '/invoices', label: 'Invoices', icon: Receipt });
+  }
+  
+  if (isAdmin) {
+    financialItems.push({ path: '/payroll', label: t.nav.payroll, icon: Wallet });
+  }
+
+  // ===========================
+  // MODULE 4: COMPANY MANAGEMENT
+  // ===========================
+  const companyItems: MenuItem[] = [];
+  
+  if (isAdmin) {
+    companyItems.push({ path: '/users', label: t.nav.users, icon: Users });
+    companyItems.push({ path: '/company', label: t.nav.company, icon: Building2 });
+    companyItems.push({ path: '/settings', label: t.nav.settings, icon: Settings });
+  }
+
+  // Home item (standalone, not in a group)
+  const homeItem = { path: '/', label: t.nav.home, icon: Home };
+
+  const renderHomeLink = () => {
+    const active = isActive('/');
+    
+    const linkContent = (
+      <a
+        href="/"
+        onClick={handleNavClick('/', t.nav.home)}
+        className={cn(
+          "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-medium transition-all duration-200 cursor-pointer",
+          active 
+            ? "bg-sidebar-accent text-sidebar-accent-foreground" 
+            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+          collapsed && "justify-center px-2"
+        )}
+      >
+        <Home className={cn("h-4 w-4 shrink-0", active && "text-primary")} />
+        {!collapsed && <span className="truncate">{t.nav.home}</span>}
+      </a>
+    );
+
+    if (collapsed) {
+      return (
+        <Tooltip delayDuration={0}>
+          <TooltipTrigger asChild>
+            {linkContent}
+          </TooltipTrigger>
+          <TooltipContent 
+            side="right" 
+            sideOffset={8}
+            className="font-medium z-[9999] bg-popover border border-border shadow-lg px-3 py-1.5"
+          >
+            <span>{t.nav.home}</span>
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return linkContent;
   };
 
   return (
@@ -116,7 +190,7 @@ const Sidebar = () => {
         "hidden lg:flex flex-col h-screen sticky top-0 border-r border-border/50 bg-sidebar-background transition-all duration-300 ease-in-out",
         collapsed ? "w-[68px]" : "w-56"
       )}>
-        {/* Platform Logo - ARKELIUM with text aligned like premium SaaS */}
+        {/* Platform Logo - ARKELIUM */}
         <div className={cn(
           "flex items-center h-14 px-3 shrink-0 border-b border-sidebar-border/50",
           collapsed ? "justify-center" : "justify-start gap-2"
@@ -138,58 +212,53 @@ const Sidebar = () => {
           )}
         </div>
 
-
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-3 px-2">
-          <ul className="space-y-0.5">
-            {navItems.map((item) => {
-              const active = isActive(item.path);
-              
-              const handleClick = (e: React.MouseEvent) => {
-                e.preventDefault();
-                openTab(item.path, item.label);
-                navigate(item.path);
-              };
-              
-              const linkContent = (
-                <a
-                  href={item.path}
-                  onClick={handleClick}
-                  className={cn(
-                    "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-medium transition-all duration-200 cursor-pointer",
-                    active 
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground" 
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
-                    collapsed && "justify-center px-2"
-                  )}
-                >
-                  <item.icon className={cn("h-4 w-4 shrink-0", active && "text-primary")} />
-                  {!collapsed && <span className="truncate">{item.label}</span>}
-                </a>
-              );
+          <div className="space-y-1">
+            {/* Home - Standalone */}
+            {renderHomeLink()}
 
-              if (collapsed) {
-                return (
-                  <li key={item.path} className="relative">
-                    <Tooltip delayDuration={0}>
-                      <TooltipTrigger asChild>
-                        {linkContent}
-                      </TooltipTrigger>
-                      <TooltipContent 
-                        side="right" 
-                        sideOffset={8}
-                        className="font-medium z-[9999] bg-popover border border-border shadow-lg px-3 py-1.5"
-                      >
-                        <span>{item.label}</span>
-                      </TooltipContent>
-                    </Tooltip>
-                  </li>
-                );
-              }
+            {/* Module 1: Operations */}
+            {operationsItems.length > 0 && (
+              <SidebarMenuGroup
+                title="Operations"
+                icon={Briefcase}
+                items={operationsItems}
+                collapsed={collapsed}
+                defaultOpen={true}
+              />
+            )}
 
-              return <li key={item.path}>{linkContent}</li>;
-            })}
-          </ul>
+            {/* Module 2: Clients & Contracts */}
+            {clientsItems.length > 0 && (
+              <SidebarMenuGroup
+                title="Clients & Contracts"
+                icon={Handshake}
+                items={clientsItems}
+                collapsed={collapsed}
+              />
+            )}
+
+            {/* Module 3: Financial */}
+            {financialItems.length > 0 && (
+              <SidebarMenuGroup
+                title="Financial"
+                icon={DollarSign}
+                items={financialItems}
+                collapsed={collapsed}
+              />
+            )}
+
+            {/* Module 4: Company Management - Admin only */}
+            {companyItems.length > 0 && (
+              <SidebarMenuGroup
+                title="Company"
+                icon={Building2}
+                items={companyItems}
+                collapsed={collapsed}
+              />
+            )}
+          </div>
         </nav>
 
         {/* Collapse Toggle */}
