@@ -47,7 +47,9 @@ const CompletedServices = () => {
 
   const isAdmin = hasRole(['admin']);
   const isManager = hasRole(['manager']);
-  const canManageInvoices = isAdmin || isManager;
+  // RULE: Only ADMIN can generate invoices
+  const canGenerateInvoices = isAdmin;
+  const canViewServices = isAdmin || isManager;
 
   const fetchCompletedServices = useCallback(async () => {
     try {
@@ -148,6 +150,12 @@ const CompletedServices = () => {
   };
 
   const handleGenerateInvoices = async () => {
+    // RULE: Only ADMIN can generate invoices
+    if (!isAdmin) {
+      toast.error('Only administrators can generate invoices');
+      return;
+    }
+
     if (selectedServices.length === 0) {
       toast.error('Please select at least one service');
       return;
@@ -303,7 +311,7 @@ const CompletedServices = () => {
     );
   }
 
-  if (!canManageInvoices) {
+  if (!canViewServices) {
     return (
       <div className="p-4 lg:p-6 max-w-7xl mx-auto">
         <Card className="border-destructive/50 bg-destructive/5">
@@ -379,14 +387,21 @@ const CompletedServices = () => {
             onChange={setSearch}
             className="max-w-sm"
           />
-          <Button 
-            onClick={() => setShowGenerateDialog(true)}
-            disabled={selectedServices.length === 0}
-            className="gap-2"
-          >
-            <Receipt className="h-4 w-4" />
-            Generate Invoices ({selectedCount})
-          </Button>
+          {/* RULE: Only ADMIN can generate invoices */}
+          {isAdmin ? (
+            <Button 
+              onClick={() => setShowGenerateDialog(true)}
+              disabled={selectedServices.length === 0}
+              className="gap-2"
+            >
+              <Receipt className="h-4 w-4" />
+              Generate Invoices ({selectedCount})
+            </Button>
+          ) : (
+            <div className="text-xs text-muted-foreground bg-muted px-3 py-2 rounded-md">
+              Only administrators can generate invoices
+            </div>
+          )}
         </div>
       </div>
 

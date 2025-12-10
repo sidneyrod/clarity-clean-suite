@@ -78,7 +78,7 @@ const AddJobModal = ({ open, onOpenChange, onSave, job, preselectedDate, presele
   const [isLoading, setIsLoading] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [unavailableCleaners, setUnavailableCleaners] = useState<string[]>([]);
-  const { validateSchedule, getAvailableCleaners } = useScheduleValidation();
+  const { validateSchedule, getAvailableCleaners, canScheduleForClient } = useScheduleValidation();
   
   // Data from Supabase
   const [clients, setClients] = useState<Client[]>([]);
@@ -322,9 +322,18 @@ const AddJobModal = ({ open, onOpenChange, onSave, job, preselectedDate, presele
       return;
     }
 
-    // Validate schedule conflicts
+    // Validate schedule conflicts and contract status
     if (user?.profile?.company_id) {
       setIsValidating(true);
+      
+      // Check if client has valid (non-expired) contract
+      const contractCheck = await canScheduleForClient(formData.clientId, user.profile.company_id);
+      if (!contractCheck.isValid) {
+        setIsValidating(false);
+        toast.error(contractCheck.message);
+        return;
+      }
+      
       const conflictCheck = await validateSchedule(
         {
           clientId: formData.clientId,

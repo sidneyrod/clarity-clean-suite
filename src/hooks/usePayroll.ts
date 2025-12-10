@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { logAuditEntry } from '@/hooks/useAuditLog';
 
 export interface PayrollPeriod {
   id: string;
@@ -321,9 +322,61 @@ export function usePayroll() {
       return;
     }
 
+    // Log audit
+    await logAuditEntry({
+      action: 'payroll_approved',
+      entityType: 'payroll_period',
+      entityId: periodId,
+      details: { description: 'Payroll period approved' },
+    }, user.id, user.companyId || undefined);
+
     toast({ title: 'Success', description: 'Payroll approved successfully' });
     await fetchPeriods();
   }, [user, fetchPeriods]);
+
+  // Check if period can be reprocessed (NOT if already paid)
+  const canReprocessPeriod = useCallback(async (periodId: string): Promise<{ canReprocess: boolean; message?: string }> => {
+    const period = periods.find(p => p.id === periodId);
+    
+    if (!period) {
+      return { canReprocess: false, message: 'Period not found' };
+    }
+    
+    if (period.status === 'paid') {
+      return { 
+        canReprocess: false, 
+        message: 'Este período de payroll já foi pago. Apenas administradores podem reprocessar e isso será registrado no log de auditoria.' 
+      };
+    }
+    
+    return { canReprocess: true };
+  }, [periods]);
+
+  // Force reprocess (admin only) - logs audit entry
+  const forceReprocessPeriod = useCallback(async (periodId: string, reason: string) => {
+    if (!user) return false;
+
+    // Check if period was paid
+    const period = periods.find(p => p.id === periodId);
+    if (!period) return false;
+
+    // Log audit entry for reprocessing
+    await logAuditEntry({
+      action: 'payroll_reprocessed',
+      entityType: 'payroll_period',
+      entityId: periodId,
+      details: {
+        description: `Payroll period reprocessed by admin`,
+        reason,
+        previousStatus: period.status,
+        previousTotalNet: period.total_net,
+        timestamp: new Date().toISOString(),
+      },
+    }, user.id, user.companyId || undefined);
+
+    toast({ title: 'Warning', description: 'Payroll reprocess logged for audit', variant: 'default' });
+    return true;
+  }, [user, periods]);
 
   // Mark as paid
   const markAsPaid = useCallback(async (periodId: string, payDate?: string) => {
@@ -398,5 +451,7 @@ export function usePayroll() {
     approvePeriod,
     markAsPaid,
     checkPeriodNotifications,
+    canReprocessPeriod,
+    forceReprocessPeriod,
   };
 }
