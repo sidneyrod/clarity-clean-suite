@@ -25,28 +25,33 @@ import { useState } from 'react';
 
 const MobileNavigation = () => {
   const { t } = useLanguage();
-  const { user } = useAuth();
+  const { hasRole } = useAuth();
   const { openTab } = useWorkspaceStore();
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
 
-  const isManagerOrAdmin = user?.role === 'admin' || user?.role === 'manager';
+  const isAdmin = hasRole(['admin']);
+  const isAdminOrManager = hasRole(['admin', 'manager']);
 
   const navItems = [
     { path: '/', label: t.nav.home, icon: Home },
-    { path: '/company', label: t.nav.company, icon: Building2 },
-    { path: '/users', label: t.nav.users, icon: Users },
-    { path: '/clients', label: t.nav.clients, icon: UserCircle },
-    { path: '/contracts', label: t.nav.contracts, icon: FileText },
     { path: '/schedule', label: t.nav.schedule, icon: Calendar },
-    { path: '/invoices', label: 'Invoices', icon: Receipt },
-    ...(isManagerOrAdmin ? [{ path: '/completed-services', label: 'Completed Services', icon: CheckCircle }] : []),
-    { path: '/calculator', label: 'Estimate', icon: Calculator },
-    { path: '/payroll', label: t.nav.payroll, icon: Wallet },
-    ...(isManagerOrAdmin ? [{ path: '/activity-log', label: t.nav.activityLog, icon: ClipboardList }] : []),
-    ...(isManagerOrAdmin ? [{ path: '/absence-approval', label: 'Absences', icon: CalendarOff }] : []),
-    { path: '/settings', label: t.nav.settings, icon: Settings },
+    ...(isAdmin ? [
+      { path: '/company', label: t.nav.company, icon: Building2 },
+      { path: '/users', label: t.nav.users, icon: Users },
+      { path: '/payroll', label: t.nav.payroll, icon: Wallet },
+      { path: '/settings', label: t.nav.settings, icon: Settings },
+    ] : []),
+    ...(isAdminOrManager ? [
+      { path: '/clients', label: t.nav.clients, icon: UserCircle },
+      { path: '/contracts', label: t.nav.contracts, icon: FileText },
+      { path: '/invoices', label: 'Invoices', icon: Receipt },
+      { path: '/completed-services', label: 'Completed Services', icon: CheckCircle },
+      { path: '/calculator', label: 'Estimate', icon: Calculator },
+      { path: '/activity-log', label: t.nav.activityLog, icon: ClipboardList },
+      { path: '/absence-approval', label: 'Absences', icon: CalendarOff },
+    ] : []),
   ];
 
   const isActive = (path: string) => {
@@ -73,9 +78,7 @@ const MobileNavigation = () => {
             }}
             className={cn(
               'flex flex-col items-center gap-1 p-2 rounded-lg transition-colors min-w-[60px]',
-              isActive(item.path)
-                ? 'text-primary' 
-                : 'text-muted-foreground'
+              isActive(item.path) ? 'text-primary' : 'text-muted-foreground'
             )}
           >
             <item.icon className="h-5 w-5" />
@@ -102,9 +105,7 @@ const MobileNavigation = () => {
                   }}
                   className={cn(
                     'flex flex-col items-center gap-2 p-4 rounded-xl transition-colors',
-                    isActive(item.path)
-                      ? 'bg-primary/10 text-primary' 
-                      : 'text-muted-foreground hover:bg-muted'
+                    isActive(item.path) ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'
                   )}
                 >
                   <item.icon className="h-6 w-6" />

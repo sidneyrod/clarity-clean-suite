@@ -224,6 +224,72 @@ export type Database = {
           },
         ]
       }
+      cleaner_payments: {
+        Row: {
+          amount_due: number
+          cash_received_by_cleaner: boolean | null
+          cleaner_id: string
+          company_id: string
+          created_at: string
+          fixed_amount: number | null
+          hourly_rate: number | null
+          hours_worked: number | null
+          id: string
+          job_id: string
+          job_total: number | null
+          notes: string | null
+          paid_at: string | null
+          payment_model: string
+          percentage_rate: number | null
+          period_id: string | null
+          service_date: string
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_due: number
+          cash_received_by_cleaner?: boolean | null
+          cleaner_id: string
+          company_id: string
+          created_at?: string
+          fixed_amount?: number | null
+          hourly_rate?: number | null
+          hours_worked?: number | null
+          id?: string
+          job_id: string
+          job_total?: number | null
+          notes?: string | null
+          paid_at?: string | null
+          payment_model: string
+          percentage_rate?: number | null
+          period_id?: string | null
+          service_date: string
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_due?: number
+          cash_received_by_cleaner?: boolean | null
+          cleaner_id?: string
+          company_id?: string
+          created_at?: string
+          fixed_amount?: number | null
+          hourly_rate?: number | null
+          hours_worked?: number | null
+          id?: string
+          job_id?: string
+          job_total?: number | null
+          notes?: string | null
+          paid_at?: string | null
+          payment_model?: string
+          percentage_rate?: number | null
+          period_id?: string | null
+          service_date?: string
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       client_locations: {
         Row: {
           access_instructions: string | null
@@ -1077,9 +1143,12 @@ export type Database = {
           email: string | null
           employment_type: string | null
           first_name: string | null
+          fixed_amount_per_job: number | null
           hourly_rate: number | null
           id: string
           last_name: string | null
+          payment_model: string | null
+          percentage_of_job_total: number | null
           phone: string | null
           primary_province: string | null
           salary: number | null
@@ -1092,9 +1161,12 @@ export type Database = {
           email?: string | null
           employment_type?: string | null
           first_name?: string | null
+          fixed_amount_per_job?: number | null
           hourly_rate?: number | null
           id: string
           last_name?: string | null
+          payment_model?: string | null
+          percentage_of_job_total?: number | null
           phone?: string | null
           primary_province?: string | null
           salary?: number | null
@@ -1107,9 +1179,12 @@ export type Database = {
           email?: string | null
           employment_type?: string | null
           first_name?: string | null
+          fixed_amount_per_job?: number | null
           hourly_rate?: number | null
           id?: string
           last_name?: string | null
+          payment_model?: string | null
+          percentage_of_job_total?: number | null
           phone?: string | null
           primary_province?: string | null
           salary?: number | null

@@ -60,6 +60,9 @@ interface ScheduledJob {
   services: string[];
   notes?: string;
   completedAt?: string;
+  jobType?: 'cleaning' | 'visit';
+  visitPurpose?: string;
+  visitRoute?: string;
 }
 
 interface AbsenceRequest {
@@ -145,6 +148,8 @@ const Schedule = () => {
           job_type,
           notes,
           completed_at,
+          visit_purpose,
+          visit_route,
           clients(id, name),
           profiles:cleaner_id(id, first_name, last_name),
           client_locations(address, city)
@@ -158,25 +163,33 @@ const Schedule = () => {
         return;
       }
       
-      const mappedJobs: ScheduledJob[] = (data || []).map((job: any) => ({
-        id: job.id,
-        clientId: job.client_id,
-        clientName: job.clients?.name || 'Unknown',
-        address: job.client_locations?.address 
-          ? `${job.client_locations.address}${job.client_locations.city ? `, ${job.client_locations.city}` : ''}`
-          : 'No address',
-        date: job.scheduled_date,
-        time: job.start_time?.slice(0, 5) || '09:00',
-        duration: job.duration_minutes ? `${job.duration_minutes / 60}h` : '2h',
-        employeeId: job.cleaner_id || '',
-        employeeName: job.profiles 
-          ? `${job.profiles.first_name || ''} ${job.profiles.last_name || ''}`.trim() || 'Unassigned'
-          : 'Unassigned',
-        status: job.status as JobStatus,
-        services: [job.job_type || 'Standard Clean'],
-        notes: job.notes,
-        completedAt: job.completed_at,
-      }));
+      const mappedJobs: ScheduledJob[] = (data || []).map((job: any) => {
+        // Determine if this is a visit or cleaning job
+        const isVisit = job.job_type === 'visit';
+        
+        return {
+          id: job.id,
+          clientId: job.client_id,
+          clientName: job.clients?.name || 'Unknown',
+          address: job.client_locations?.address 
+            ? `${job.client_locations.address}${job.client_locations.city ? `, ${job.client_locations.city}` : ''}`
+            : 'No address',
+          date: job.scheduled_date,
+          time: job.start_time?.slice(0, 5) || '09:00',
+          duration: job.duration_minutes ? `${job.duration_minutes / 60}h` : '2h',
+          employeeId: job.cleaner_id || '',
+          employeeName: job.profiles 
+            ? `${job.profiles.first_name || ''} ${job.profiles.last_name || ''}`.trim() || 'Unassigned'
+            : 'Unassigned',
+          status: job.status as JobStatus,
+          services: isVisit ? ['Visit'] : [job.job_type || 'Standard Clean'],
+          notes: job.notes,
+          completedAt: job.completed_at,
+          jobType: isVisit ? 'visit' : 'cleaning',
+          visitPurpose: job.visit_purpose,
+          visitRoute: job.visit_route,
+        };
+      });
       
       setJobs(mappedJobs);
       setIsLoading(false);
@@ -250,6 +263,76 @@ const Schedule = () => {
   const uniqueEmployees = Array.from(new Set(jobs.map(j => ({ id: j.employeeId, name: j.employeeName }))))
     .filter((emp, index, self) => self.findIndex(e => e.id === emp.id) === index);
 
+  // Create cleaner payment entry based on their payment model
+  const createCleanerPayment = async (
+    job: ScheduledJob, 
+    jobTotal: number, 
+    hoursWorked: number,
+    paymentData: PaymentData
+  ) => {
+    try {
+      const companyId = user?.profile?.company_id;
+      if (!companyId || !job.employeeId) return;
+      
+      // Fetch cleaner's payment model from profiles
+      const { data: cleanerProfile } = await supabase
+        .from('profiles')
+        .select('payment_model, hourly_rate, fixed_amount_per_job, percentage_of_job_total')
+        .eq('id', job.employeeId)
+        .maybeSingle();
+      
+      if (!cleanerProfile) return;
+      
+      const paymentModel = cleanerProfile.payment_model || 'hourly';
+      let amountDue = 0;
+      
+      // Calculate amount based on payment model
+      switch (paymentModel) {
+        case 'hourly':
+          const hourlyRate = cleanerProfile.hourly_rate || 15;
+          amountDue = hoursWorked * hourlyRate;
+          break;
+        case 'fixed':
+          amountDue = cleanerProfile.fixed_amount_per_job || 50;
+          break;
+        case 'percentage':
+          const percentage = cleanerProfile.percentage_of_job_total || 60;
+          amountDue = jobTotal * (percentage / 100);
+          break;
+      }
+      
+      // Determine if cleaner already received cash
+      const cashReceivedByCleaner = paymentData.paymentMethod === 'cash' && 
+        paymentData.paymentReceivedBy === 'cleaner';
+      
+      // Create cleaner payment entry
+      await supabase
+        .from('cleaner_payments')
+        .insert({
+          company_id: companyId,
+          cleaner_id: job.employeeId,
+          job_id: job.id,
+          service_date: job.date,
+          payment_model: paymentModel,
+          hours_worked: hoursWorked,
+          hourly_rate: cleanerProfile.hourly_rate,
+          job_total: jobTotal,
+          percentage_rate: cleanerProfile.percentage_of_job_total,
+          fixed_amount: cleanerProfile.fixed_amount_per_job,
+          amount_due: amountDue,
+          status: cashReceivedByCleaner ? 'cash_received' : 'pending',
+          cash_received_by_cleaner: cashReceivedByCleaner,
+          notes: cashReceivedByCleaner 
+            ? `Cash received directly by cleaner from client` 
+            : null,
+        });
+      
+      console.log(`Cleaner payment created: $${amountDue.toFixed(2)} (${paymentModel})`);
+    } catch (error) {
+      console.error('Error creating cleaner payment:', error);
+    }
+  };
+
   // Navigation handlers
   const goToToday = () => setCurrentDate(new Date());
   
@@ -316,6 +399,9 @@ const Schedule = () => {
       const durationMatch = jobData.duration.match(/(\d+\.?\d*)/);
       const durationMinutes = durationMatch ? parseFloat(durationMatch[1]) * 60 : 120;
       
+      // Determine job type - check if formData has jobType property
+      const isVisit = (jobData as any).jobType === 'visit';
+      
       const { data, error } = await supabase
         .from('jobs')
         .insert({
@@ -326,8 +412,10 @@ const Schedule = () => {
           start_time: jobData.time,
           duration_minutes: durationMinutes,
           status: 'scheduled',
-          job_type: jobData.services[0] || 'Standard Clean',
+          job_type: isVisit ? 'visit' : (jobData.services[0] || 'Standard Clean'),
           notes: jobData.notes,
+          visit_purpose: isVisit ? (jobData as any).visitPurpose : null,
+          visit_route: isVisit ? (jobData as any).visitRoute : null,
         })
         .select()
         .single();
@@ -454,7 +542,15 @@ const Schedule = () => {
       if (job) {
         logActivity('job_completed', `Job completed for ${job.clientName}`, jobId, job.clientName);
         
-        // Auto-generate invoice
+        // Skip invoice generation for Visit type jobs
+        if (job.jobType === 'visit') {
+          toast.success('Visit completed successfully');
+          await fetchJobs();
+          setSelectedJob(null);
+          return;
+        }
+        
+        // Auto-generate invoice for cleaning jobs
         const existingInvoice = getInvoiceByJobId(jobId);
         if (!existingInvoice) {
           const durationHours = parseFloat(job.duration.replace(/[^0-9.]/g, '')) || 2;
@@ -491,6 +587,11 @@ const Schedule = () => {
             status: paymentData?.paymentMethod ? 'paid' : 'draft',
             notes: notes || ''
           });
+          
+          // Create cleaner payment entry automatically
+          if (job.employeeId && paymentData?.paymentMethod) {
+            await createCleanerPayment(job, total, durationHours, paymentData);
+          }
           
           // If payment was recorded, update the invoice with payment info
           if (paymentData?.paymentMethod) {
