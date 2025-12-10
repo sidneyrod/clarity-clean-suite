@@ -40,6 +40,13 @@ interface DashboardStats {
   upcomingSchedule: number;
 }
 
+interface AlertStats {
+  delayedJobs: number;
+  pendingInvoices: number;
+  scheduleConflicts: number;
+  pendingOffRequests: number;
+}
+
 const Dashboard = () => {
   const { t } = useLanguage();
   const { user } = useAuth();
@@ -53,6 +60,12 @@ const Dashboard = () => {
     monthlyRevenue: 0,
     pendingPayments: 0,
     upcomingSchedule: 0,
+  });
+  const [alertStats, setAlertStats] = useState<AlertStats>({
+    delayedJobs: 0,
+    pendingInvoices: 0,
+    scheduleConflicts: 0,
+    pendingOffRequests: 0,
   });
   const [weeklyJobsData, setWeeklyJobsData] = useState([
     { name: 'Mon', jobs: 0 },
@@ -132,6 +145,21 @@ const Dashboard = () => {
         .gte('scheduled_date', today)
         .eq('status', 'scheduled');
 
+      // Fetch delayed jobs (scheduled in the past but not completed)
+      const { data: delayedJobs } = await supabase
+        .from('jobs')
+        .select('id')
+        .eq('company_id', companyId)
+        .lt('scheduled_date', today)
+        .eq('status', 'scheduled');
+
+      // Fetch pending off requests
+      const { data: pendingOffRequests } = await supabase
+        .from('absence_requests')
+        .select('id')
+        .eq('company_id', companyId)
+        .eq('status', 'pending');
+
       // Calculate stats
       const monthlyRevenue = paidInvoices?.reduce((sum, inv) => sum + (inv.total || 0), 0) || 0;
       const pendingPayments = pendingInvoices?.reduce((sum, inv) => sum + (inv.total || 0), 0) || 0;
@@ -143,6 +171,13 @@ const Dashboard = () => {
         monthlyRevenue,
         pendingPayments,
         upcomingSchedule: upcomingJobs?.length || 0,
+      });
+
+      setAlertStats({
+        delayedJobs: delayedJobs?.length || 0,
+        pendingInvoices: pendingInvoices?.length || 0,
+        scheduleConflicts: 0, // TODO: Implement conflict detection
+        pendingOffRequests: pendingOffRequests?.length || 0,
       });
 
       // Fetch weekly jobs for chart
@@ -359,49 +394,30 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Bottom Row */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Recent Jobs */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Clock className="h-5 w-5 text-primary" />
-              {t.dashboard.recentJobs}
-            </h2>
-          </div>
-          <Card className="border-border/50">
-            <CardContent className="py-12 text-center text-muted-foreground">
-              <p>{t.common.noData}</p>
-              <p className="text-sm mt-1">Create jobs in Schedule to see them here</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Alerts */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">{t.dashboard.alerts}</h2>
-          <div className="space-y-3">
-            <AlertCard 
-              type="delayed" 
-              title={t.dashboard.delayedJobs} 
-              count={0} 
-            />
-            <AlertCard 
-              type="churn" 
-              title={t.dashboard.churnRisk} 
-              count={0} 
-            />
-            <AlertCard 
-              type="invoice" 
-              title={t.dashboard.pendingInvoices} 
-              count={0} 
-            />
-            <AlertCard 
-              type="conflict" 
-              title={t.dashboard.scheduleConflicts} 
-              count={0} 
-            />
-          </div>
+      {/* Alerts Section */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">{t.dashboard.alerts}</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <AlertCard 
+            type="delayed" 
+            title={t.dashboard.delayedJobs} 
+            count={alertStats.delayedJobs} 
+          />
+          <AlertCard 
+            type="invoice" 
+            title={t.dashboard.pendingInvoices} 
+            count={alertStats.pendingInvoices} 
+          />
+          <AlertCard 
+            type="conflict" 
+            title="Pending Off Requests" 
+            count={alertStats.pendingOffRequests} 
+          />
+          <AlertCard 
+            type="churn" 
+            title={t.dashboard.scheduleConflicts} 
+            count={alertStats.scheduleConflicts} 
+          />
         </div>
       </div>
     </div>
