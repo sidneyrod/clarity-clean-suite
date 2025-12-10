@@ -167,7 +167,7 @@ const Clients = () => {
       );
       
       if (!duplicateCheck.isValid) {
-        toast({ title: 'Erro', description: duplicateCheck.message, variant: 'destructive' });
+        toast({ title: 'Error', description: duplicateCheck.message, variant: 'destructive' });
         return;
       }
 
