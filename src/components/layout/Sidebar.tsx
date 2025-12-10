@@ -28,7 +28,7 @@ import arkeliumLogo from '@/assets/arkelium-logo.png';
 
 const Sidebar = () => {
   const { t } = useLanguage();
-  const { user } = useAuth();
+  const { hasRole } = useAuth();
   const { branding, profile } = useCompanyStore();
   const { openTab } = useWorkspaceStore();
   const location = useLocation();
@@ -47,22 +47,36 @@ const Sidebar = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const isManagerOrAdmin = user?.role === 'admin' || user?.role === 'manager';
+  // Role checks using hasRole from AuthContext
+  const isAdmin = hasRole(['admin']);
+  const isAdminOrManager = hasRole(['admin', 'manager']);
 
+  // Build nav items based on user role
   const navItems = [
+    // Dashboard - all users
     { path: '/', label: t.nav.home, icon: Home },
-    { path: '/company', label: t.nav.company, icon: Building2 },
-    { path: '/users', label: t.nav.users, icon: Users },
-    { path: '/clients', label: t.nav.clients, icon: UserCircle },
-    { path: '/contracts', label: t.nav.contracts, icon: FileText },
+    
+    // Schedule - all users (cleaners see only their jobs)
     { path: '/schedule', label: t.nav.schedule, icon: Calendar },
-    { path: '/invoices', label: 'Invoices', icon: Receipt },
-    ...(isManagerOrAdmin ? [{ path: '/completed-services', label: 'Completed Services', icon: CheckCircle }] : []),
-    { path: '/calculator', label: 'Estimate', icon: FileSpreadsheet },
-    { path: '/payroll', label: t.nav.payroll, icon: Wallet },
-    ...(isManagerOrAdmin ? [{ path: '/activity-log', label: t.nav.activityLog, icon: ClipboardList }] : []),
-    ...(isManagerOrAdmin ? [{ path: '/absence-approval', label: 'Absences', icon: CalendarOff }] : []),
-    { path: '/settings', label: t.nav.settings, icon: Settings },
+    
+    // Admin-only
+    ...(isAdmin ? [
+      { path: '/company', label: t.nav.company, icon: Building2 },
+      { path: '/users', label: t.nav.users, icon: Users },
+      { path: '/payroll', label: t.nav.payroll, icon: Wallet },
+      { path: '/settings', label: t.nav.settings, icon: Settings },
+    ] : []),
+    
+    // Admin/Manager
+    ...(isAdminOrManager ? [
+      { path: '/clients', label: t.nav.clients, icon: UserCircle },
+      { path: '/contracts', label: t.nav.contracts, icon: FileText },
+      { path: '/invoices', label: 'Invoices', icon: Receipt },
+      { path: '/completed-services', label: 'Completed Services', icon: CheckCircle },
+      { path: '/calculator', label: 'Estimate', icon: FileSpreadsheet },
+      { path: '/activity-log', label: t.nav.activityLog, icon: ClipboardList },
+      { path: '/absence-approval', label: 'Absences', icon: CalendarOff },
+    ] : []),
   ];
 
   const isActive = (path: string) => {

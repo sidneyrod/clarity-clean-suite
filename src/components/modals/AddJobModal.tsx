@@ -92,6 +92,9 @@ const AddJobModal = ({ open, onOpenChange, onSave, job, preselectedDate, presele
     services: job?.services || ['Standard Clean'],
     notes: job?.notes || '',
     status: job?.status || 'scheduled' as const,
+    jobType: 'cleaning' as 'cleaning' | 'visit',
+    visitPurpose: '',
+    visitRoute: '',
   });
 
   // Fetch clients and employees from Supabase
@@ -180,6 +183,9 @@ const AddJobModal = ({ open, onOpenChange, onSave, job, preselectedDate, presele
           services: job.services,
           notes: job.notes || '',
           status: job.status,
+          jobType: 'cleaning',
+          visitPurpose: '',
+          visitRoute: '',
         });
       } else {
         setFormData({
@@ -194,6 +200,9 @@ const AddJobModal = ({ open, onOpenChange, onSave, job, preselectedDate, presele
           services: ['Standard Clean'],
           notes: '',
           status: 'scheduled',
+          jobType: 'cleaning',
+          visitPurpose: '',
+          visitRoute: '',
         });
       }
       setErrors({});
@@ -395,24 +404,79 @@ const AddJobModal = ({ open, onOpenChange, onSave, job, preselectedDate, presele
               </div>
             </div>
             
+            {/* Job Type */}
             <div className="space-y-1.5">
-              <Label className="text-xs">{t.job.serviceType}</Label>
+              <Label className="text-xs">Event Type</Label>
               <Select 
-                value={formData.services[0]} 
-                onValueChange={(service) => setFormData(prev => ({ ...prev, services: [service] }))}
+                value={formData.jobType} 
+                onValueChange={(v) => setFormData(prev => ({ ...prev, jobType: v as 'cleaning' | 'visit' }))}
               >
                 <SelectTrigger className="h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-popover">
-                  <SelectItem value="Standard Clean">{t.job.standardClean}</SelectItem>
-                  <SelectItem value="Deep Clean">{t.job.deepClean}</SelectItem>
-                  <SelectItem value="Move-out Clean">{t.job.moveOutClean}</SelectItem>
-                  <SelectItem value="Office Clean">{t.job.officeClean}</SelectItem>
-                  <SelectItem value="Daily Clean">{t.job.dailyClean}</SelectItem>
+                  <SelectItem value="cleaning">🧹 Cleaning Service (Billable)</SelectItem>
+                  <SelectItem value="visit">👁️ Visit (Non-billable)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Visit-specific fields */}
+            {formData.jobType === 'visit' && (
+              <>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Visit Purpose</Label>
+                  <Select 
+                    value={formData.visitPurpose} 
+                    onValueChange={(v) => setFormData(prev => ({ ...prev, visitPurpose: v }))}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select purpose..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover">
+                      <SelectItem value="inspection">Inspection</SelectItem>
+                      <SelectItem value="quote">Quote / Estimate</SelectItem>
+                      <SelectItem value="follow-up">Follow-up</SelectItem>
+                      <SelectItem value="consultation">Consultation</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Visit Route / Instructions</Label>
+                  <Textarea
+                    value={formData.visitRoute}
+                    onChange={(e) => setFormData(prev => ({ ...prev, visitRoute: e.target.value }))}
+                    placeholder="Enter route, stops, or special instructions for this visit..."
+                    rows={3}
+                    className="text-sm"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Service Type - only for cleaning jobs */}
+            {formData.jobType === 'cleaning' && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t.job.serviceType}</Label>
+                <Select 
+                  value={formData.services[0]} 
+                  onValueChange={(service) => setFormData(prev => ({ ...prev, services: [service] }))}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover">
+                    <SelectItem value="Standard Clean">{t.job.standardClean}</SelectItem>
+                    <SelectItem value="Deep Clean">{t.job.deepClean}</SelectItem>
+                    <SelectItem value="Move-out Clean">{t.job.moveOutClean}</SelectItem>
+                    <SelectItem value="Office Clean">{t.job.officeClean}</SelectItem>
+                    <SelectItem value="Daily Clean">{t.job.dailyClean}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             
             <div className="space-y-1.5">
               <Label className="text-xs">{t.job.notes}</Label>

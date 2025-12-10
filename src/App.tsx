@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth, UserRole } from "@/contexts/AuthContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import AppLayout from "@/components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
@@ -27,8 +27,14 @@ import AbsenceApproval from "./pages/AbsenceApproval";
 
 const queryClient = new QueryClient();
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  allowedRoles?: UserRole[];
+}
+
+const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
+  const { isAuthenticated, isLoading, hasRole } = useAuth();
+  
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -36,9 +42,16 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       </div>
     );
   }
+  
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
+  
+  // Check role-based access if allowedRoles is specified
+  if (allowedRoles && allowedRoles.length > 0 && !hasRole(allowedRoles)) {
+    return <Navigate to="/" replace />;
+  }
+  
   return <>{children}</>;
 };
 
@@ -57,6 +70,44 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Admin-only routes wrapper
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const { hasRole, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+  
+  if (!hasRole(['admin'])) {
+    return <Navigate to="/" replace />;
+  }
+  
+  return <>{children}</>;
+};
+
+// Admin or Manager routes wrapper
+const AdminManagerRoute = ({ children }: { children: React.ReactNode }) => {
+  const { hasRole, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+  
+  if (!hasRole(['admin', 'manager'])) {
+    return <Navigate to="/" replace />;
+  }
+  
+  return <>{children}</>;
+};
+
 const AppRoutes = () => {
   return (
     <Routes>
@@ -64,19 +115,26 @@ const AppRoutes = () => {
       <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
       
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+        {/* Dashboard - accessible to all authenticated users */}
         <Route path="/" element={<Dashboard />} />
-        <Route path="/company" element={<Company />} />
-        <Route path="/users" element={<Users />} />
-        <Route path="/clients" element={<Clients />} />
-        <Route path="/contracts" element={<Contracts />} />
+        
+        {/* Schedule - accessible to all (cleaners see only their jobs via RLS) */}
         <Route path="/schedule" element={<Schedule />} />
-        <Route path="/invoices" element={<Invoices />} />
-        <Route path="/completed-services" element={<CompletedServices />} />
-        <Route path="/calculator" element={<Calculator />} />
-        <Route path="/payroll" element={<Payroll />} />
-        <Route path="/activity-log" element={<ActivityLog />} />
-        <Route path="/absence-approval" element={<AbsenceApproval />} />
-        <Route path="/settings" element={<Settings />} />
+        
+        {/* Admin-only routes */}
+        <Route path="/company" element={<AdminRoute><Company /></AdminRoute>} />
+        <Route path="/users" element={<AdminRoute><Users /></AdminRoute>} />
+        <Route path="/settings" element={<AdminRoute><Settings /></AdminRoute>} />
+        <Route path="/activity-log" element={<AdminManagerRoute><ActivityLog /></AdminManagerRoute>} />
+        <Route path="/absence-approval" element={<AdminManagerRoute><AbsenceApproval /></AdminManagerRoute>} />
+        
+        {/* Admin/Manager routes */}
+        <Route path="/clients" element={<AdminManagerRoute><Clients /></AdminManagerRoute>} />
+        <Route path="/contracts" element={<AdminManagerRoute><Contracts /></AdminManagerRoute>} />
+        <Route path="/invoices" element={<AdminManagerRoute><Invoices /></AdminManagerRoute>} />
+        <Route path="/completed-services" element={<AdminManagerRoute><CompletedServices /></AdminManagerRoute>} />
+        <Route path="/calculator" element={<AdminManagerRoute><Calculator /></AdminManagerRoute>} />
+        <Route path="/payroll" element={<AdminRoute><Payroll /></AdminRoute>} />
       </Route>
       
       <Route path="*" element={<NotFound />} />
