@@ -716,7 +716,10 @@ const Schedule = () => {
 
   const getJobsForDate = (date: Date) => {
     return filteredJobs.filter(job => {
-      const jobDate = new Date(job.date);
+      // Parse job.date as local date to avoid timezone shift
+      // job.date is in format "YYYY-MM-DD"
+      const [year, month, day] = job.date.split('-').map(Number);
+      const jobDate = new Date(year, month - 1, day, 12, 0, 0);
       return isSameDay(jobDate, date);
     });
   };
