@@ -29,7 +29,9 @@ import {
   Mail,
   MessageSquare,
   Receipt,
-  Loader2
+  Loader2,
+  Sparkles,
+  Eye
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -937,11 +939,18 @@ const Schedule = () => {
                               key={job.id}
                               onClick={(e) => { e.stopPropagation(); setSelectedJob(job); }}
                               className={cn(
-                                "text-[10px] px-1 py-0.5 rounded truncate cursor-pointer",
-                                statusConfig[job.status].bgColor
+                                "text-[10px] px-1 py-0.5 rounded truncate cursor-pointer flex items-center gap-1",
+                                job.jobType === 'visit' 
+                                  ? "bg-purple-500/10 border border-purple-500/20 text-purple-700 dark:text-purple-300" 
+                                  : statusConfig[job.status].bgColor
                               )}
                             >
-                              {job.clientName}
+                              {job.jobType === 'visit' ? (
+                                <Eye className="h-2.5 w-2.5 flex-shrink-0" />
+                              ) : (
+                                <Sparkles className="h-2.5 w-2.5 flex-shrink-0" />
+                              )}
+                              <span className="truncate">{job.clientName}</span>
                             </div>
                           ))}
                           {dayJobs.length > 2 && (
@@ -1003,12 +1012,27 @@ const Schedule = () => {
                                 key={job.id}
                                 className={cn(
                                   "p-1.5 rounded border text-xs cursor-pointer transition-all hover:shadow-md",
-                                  statusConfig[job.status].bgColor
+                                  job.jobType === 'visit' 
+                                    ? "bg-purple-500/10 border-purple-500/30" 
+                                    : statusConfig[job.status].bgColor
                                 )}
                                 onClick={(e) => { e.stopPropagation(); setSelectedJob(job); }}
                               >
-                                <p className="font-medium truncate">{job.clientName}</p>
+                                <div className="flex items-center gap-1 mb-0.5">
+                                  {job.jobType === 'visit' ? (
+                                    <Eye className="h-3 w-3 text-purple-500" />
+                                  ) : (
+                                    <Sparkles className="h-3 w-3 text-primary" />
+                                  )}
+                                  <p className="font-medium truncate">{job.clientName}</p>
+                                </div>
                                 <p className="text-muted-foreground text-[10px] truncate">{job.employeeName}</p>
+                                <span className={cn(
+                                  "text-[9px] font-medium",
+                                  job.jobType === 'visit' ? "text-purple-600 dark:text-purple-400" : "text-primary"
+                                )}>
+                                  {job.jobType === 'visit' ? 'Visit' : 'Service'}
+                                </span>
                               </div>
                             ))}
                           </div>
@@ -1044,11 +1068,31 @@ const Schedule = () => {
                               key={job.id}
                               className={cn(
                                 "p-2 rounded border cursor-pointer",
-                                statusConfig[job.status].bgColor
+                                job.jobType === 'visit' 
+                                  ? "bg-purple-500/10 border-purple-500/30" 
+                                  : statusConfig[job.status].bgColor
                               )}
                               onClick={(e) => { e.stopPropagation(); setSelectedJob(job); }}
                             >
-                              <p className="font-medium text-sm">{job.clientName}</p>
+                              <div className="flex items-center gap-2 mb-1">
+                                {job.jobType === 'visit' ? (
+                                  <Eye className="h-4 w-4 text-purple-500" />
+                                ) : (
+                                  <Sparkles className="h-4 w-4 text-primary" />
+                                )}
+                                <p className="font-medium text-sm">{job.clientName}</p>
+                                <Badge 
+                                  variant="outline" 
+                                  className={cn(
+                                    "text-[10px] px-1 py-0",
+                                    job.jobType === 'visit' 
+                                      ? "border-purple-500/30 text-purple-600 dark:text-purple-400" 
+                                      : "border-primary/30 text-primary"
+                                  )}
+                                >
+                                  {job.jobType === 'visit' ? 'Visit' : 'Service'}
+                                </Badge>
+                              </div>
                               <p className="text-xs text-muted-foreground">{job.address}</p>
                             </div>
                           ))}
@@ -1078,10 +1122,12 @@ const Schedule = () => {
                       key={job.id} 
                       className={cn(
                         "border-l-4 cursor-pointer transition-all hover:shadow-md",
-                        job.status === 'scheduled' && "border-l-info",
-                        job.status === 'in-progress' && "border-l-warning",
-                        job.status === 'completed' && "border-l-success",
-                        job.status === 'cancelled' && "border-l-muted-foreground"
+                        job.jobType === 'visit' 
+                          ? "border-l-purple-500"
+                          : job.status === 'scheduled' ? "border-l-info"
+                          : job.status === 'in-progress' ? "border-l-warning"
+                          : job.status === 'completed' ? "border-l-success"
+                          : "border-l-muted-foreground"
                       )}
                       onClick={() => setSelectedJob(job)}
                     >
@@ -1094,8 +1140,26 @@ const Schedule = () => {
                             </div>
                             <div className="h-10 w-px bg-border" />
                             <div>
-                              <p className="font-medium text-sm">{job.clientName}</p>
-                              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                              <div className="flex items-center gap-2">
+                                {job.jobType === 'visit' ? (
+                                  <Eye className="h-4 w-4 text-purple-500" />
+                                ) : (
+                                  <Sparkles className="h-4 w-4 text-primary" />
+                                )}
+                                <p className="font-medium text-sm">{job.clientName}</p>
+                                <Badge 
+                                  variant="outline" 
+                                  className={cn(
+                                    "text-[10px] px-1.5 py-0",
+                                    job.jobType === 'visit' 
+                                      ? "border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400" 
+                                      : "border-primary/30 bg-primary/10 text-primary"
+                                  )}
+                                >
+                                  {job.jobType === 'visit' ? 'Visit' : 'Service'}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                                 <MapPin className="h-3 w-3" />
                                 {job.address}
                               </p>
@@ -1121,6 +1185,17 @@ const Schedule = () => {
 
           {/* Status Legend */}
           <div className="flex flex-wrap items-center gap-4 text-xs">
+            {/* Type Legend */}
+            <div className="flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              <span className="text-muted-foreground">Service</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Eye className="h-3.5 w-3.5 text-purple-500" />
+              <span className="text-muted-foreground">Visit</span>
+            </div>
+            <div className="h-4 w-px bg-border mx-1" />
+            {/* Status Legend */}
             {Object.entries(statusConfig).map(([status, config]) => (
               <div key={status} className="flex items-center gap-1.5">
                 <div className={cn("h-2.5 w-2.5 rounded-full", config.bgColor.split(' ')[0])} />

@@ -234,7 +234,7 @@ const Clients = () => {
     // If there's a warning, don't allow deletion
     if (deleteWarning) {
       toast({ 
-        title: 'Não permitido', 
+        title: 'Not allowed', 
         description: deleteWarning, 
         variant: 'destructive' 
       });

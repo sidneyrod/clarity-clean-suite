@@ -156,7 +156,7 @@ const CleanerOffRequests = () => {
     requestType: string;
   }) => {
     if (!user?.id || !user?.profile?.company_id) {
-      toast.error(isEnglish ? 'User not authenticated' : 'Usuário não autenticado');
+      toast.error('User not authenticated');
       return;
     }
     

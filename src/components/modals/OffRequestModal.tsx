@@ -404,18 +404,16 @@ const OffRequestModal = ({ open, onOpenChange, onSubmit, employeeName }: OffRequ
           {/* Warning Message */}
           <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
             <p className="text-sm text-warning-foreground">
-              {isEnglish 
-                ? '⚠️ This request requires admin approval. Once approved, you will be completely blocked from the schedule during this period. No jobs can be assigned to you.' 
-                : '⚠️ Esta solicitação requer aprovação do administrador. Após aprovação, você será completamente bloqueado da agenda neste período. Nenhum serviço poderá ser atribuído a você.'}
+              ⚠️ This request requires admin approval. Once approved, you will be completely blocked from the schedule during this period. No jobs can be assigned to you.
             </p>
           </div>
           
           <DialogFooter className="pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              {isEnglish ? 'Cancel' : 'Cancelar'}
+              Cancel
             </Button>
             <Button type="submit" disabled={!dateRange?.from}>
-              {isEnglish ? 'Submit Request' : 'Enviar Solicitação'}
+              Submit Request
             </Button>
           </DialogFooter>
         </form>

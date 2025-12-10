@@ -43,10 +43,20 @@ const Absences = () => {
 
   useEffect(() => {
     fetchAbsences();
-  }, [user?.companyId]);
+  }, [user?.profile?.company_id]);
 
   const fetchAbsences = async () => {
-    if (!user?.companyId) return;
+    let companyId = user?.profile?.company_id;
+    
+    if (!companyId) {
+      const { data: companyIdData } = await supabase.rpc('get_user_company_id');
+      companyId = companyIdData;
+    }
+    
+    if (!companyId) {
+      setLoading(false);
+      return;
+    }
 
     try {
       const { data, error } = await supabase
@@ -56,7 +66,7 @@ const Absences = () => {
           cleaner:profiles!absence_requests_cleaner_id_fkey(first_name, last_name, email),
           approver:profiles!absence_requests_approved_by_fkey(first_name, last_name)
         `)
-        .eq('company_id', user.companyId)
+        .eq('company_id', companyId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -97,7 +107,7 @@ const Absences = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-6">
       <PageHeader
         title="Absences"
         description="View all employee absences and time-off periods"
