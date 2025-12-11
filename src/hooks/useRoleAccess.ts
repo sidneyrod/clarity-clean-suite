@@ -5,6 +5,7 @@ interface RolePermissions {
   // Module access
   canAccessUsers: boolean;
   canAccessPayroll: boolean;
+  canAccessMyPayroll: boolean; // Cleaner's own payroll report
   canAccessInvoices: boolean;
   canAccessClients: boolean;
   canAccessContracts: boolean;
@@ -38,6 +39,7 @@ const rolePermissions: Record<UserRole, RolePermissions> = {
   admin: {
     canAccessUsers: true,
     canAccessPayroll: true,
+    canAccessMyPayroll: false,
     canAccessInvoices: true,
     canAccessClients: true,
     canAccessContracts: true,
@@ -66,6 +68,7 @@ const rolePermissions: Record<UserRole, RolePermissions> = {
   manager: {
     canAccessUsers: false,
     canAccessPayroll: false,
+    canAccessMyPayroll: false,
     canAccessInvoices: true, // View only
     canAccessClients: true,
     canAccessContracts: true,
@@ -94,6 +97,7 @@ const rolePermissions: Record<UserRole, RolePermissions> = {
   cleaner: {
     canAccessUsers: false,
     canAccessPayroll: false,
+    canAccessMyPayroll: true, // Cleaners can see their own payroll
     canAccessInvoices: false,
     canAccessClients: false,
     canAccessContracts: false,
@@ -124,6 +128,7 @@ const rolePermissions: Record<UserRole, RolePermissions> = {
 const defaultPermissions: RolePermissions = {
   canAccessUsers: false,
   canAccessPayroll: false,
+  canAccessMyPayroll: false,
   canAccessInvoices: false,
   canAccessClients: false,
   canAccessContracts: false,

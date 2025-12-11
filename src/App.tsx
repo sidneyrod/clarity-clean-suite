@@ -26,6 +26,7 @@ import CompletedServices from "./pages/CompletedServices";
 import NotFound from "./pages/NotFound";
 import OffRequests from "./pages/OffRequests";
 import CleanerOffRequests from "./pages/CleanerOffRequests";
+import CleanerPayroll from "./pages/CleanerPayroll";
 import VisitHistory from "./pages/VisitHistory";
 import Absences from "./pages/Absences";
 import Availability from "./pages/Availability";
@@ -168,6 +169,9 @@ const AppRoutes = () => {
         
         {/* My Off Requests - Cleaner view */}
         <Route path="/my-off-requests" element={<CleanerRoute><CleanerOffRequests /></CleanerRoute>} />
+        
+        {/* My Payroll - Cleaner view */}
+        <Route path="/my-payroll" element={<CleanerRoute><CleanerPayroll /></CleanerRoute>} />
         
         {/* Visit History - all users (RLS filters by role) */}
         <Route path="/visit-history" element={<ProtectedRoute><VisitHistory /></ProtectedRoute>} />

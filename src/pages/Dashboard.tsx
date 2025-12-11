@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import StatCard from '@/components/ui/stat-card';
 import AlertCard from '@/components/ui/alert-card';
+import useRoleAccess from '@/hooks/useRoleAccess';
 import { 
   Briefcase, 
   Users, 
@@ -13,7 +14,9 @@ import {
   CreditCard, 
   Calendar,
   TrendingUp,
-  BarChart3
+  BarChart3,
+  Clock,
+  CalendarCheck
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
@@ -37,6 +40,11 @@ interface DashboardStats {
   monthlyRevenue: number;
   pendingPayments: number;
   upcomingSchedule: number;
+  // Cleaner-specific stats
+  myTodayJobs: number;
+  myWeekJobs: number;
+  myPendingOffRequests: number;
+  myHoursThisWeek: number;
 }
 
 interface AlertStats {
@@ -50,6 +58,7 @@ const Dashboard = () => {
   const { t } = useLanguage();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { isCleaner, isAdminOrManager } = useRoleAccess();
   
   
   const [stats, setStats] = useState<DashboardStats>({
@@ -59,6 +68,10 @@ const Dashboard = () => {
     monthlyRevenue: 0,
     pendingPayments: 0,
     upcomingSchedule: 0,
+    myTodayJobs: 0,
+    myWeekJobs: 0,
+    myPendingOffRequests: 0,
+    myHoursThisWeek: 0,
   });
   const [alertStats, setAlertStats] = useState<AlertStats>({
     delayedJobs: 0,
@@ -170,6 +183,10 @@ const Dashboard = () => {
         monthlyRevenue,
         pendingPayments,
         upcomingSchedule: upcomingJobs?.length || 0,
+        myTodayJobs: 0,
+        myWeekJobs: 0,
+        myPendingOffRequests: 0,
+        myHoursThisWeek: 0,
       });
 
       setAlertStats({

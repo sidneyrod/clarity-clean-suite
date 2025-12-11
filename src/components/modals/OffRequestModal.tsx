@@ -402,9 +402,11 @@ const OffRequestModal = ({ open, onOpenChange, onSubmit, employeeName }: OffRequ
           </div>
           
           {/* Warning Message */}
-          <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
-            <p className="text-sm text-warning-foreground">
-              ⚠️ This request requires admin approval. Once approved, you will be completely blocked from the schedule during this period. No jobs can be assigned to you.
+          <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+            <p className="text-sm text-amber-800 dark:text-amber-200">
+              ⚠️ {isEnglish 
+                ? 'This request requires admin approval. Once approved, you will be completely blocked from the schedule during this period. No jobs can be assigned to you.'
+                : 'Esta solicitação requer aprovação do administrador. Uma vez aprovada, você será completamente bloqueado da agenda durante este período. Nenhum serviço poderá ser atribuído a você.'}
             </p>
           </div>
           
