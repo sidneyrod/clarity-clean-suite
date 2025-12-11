@@ -7,6 +7,7 @@ import WorkspaceTabs from './WorkspaceTabs';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Map paths to labels
 const getPageLabel = (path: string, t: any): string => {
@@ -32,8 +33,21 @@ const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useLanguage();
-  const { openTab, tabs, activeTabId } = useWorkspaceStore();
+  const { user } = useAuth();
+  const { openTab, activeTabId, setCurrentUser, currentUserId, userTabs } = useWorkspaceStore();
   const hasRestoredSession = useRef(false);
+
+  // Get current user's tabs
+  const tabs = currentUserId && userTabs[currentUserId] ? userTabs[currentUserId] : [];
+
+  // Set current user in workspace store when user changes
+  useEffect(() => {
+    if (user?.id) {
+      setCurrentUser(user.id);
+    } else {
+      setCurrentUser(null);
+    }
+  }, [user?.id, setCurrentUser]);
 
   // On mount, restore the active tab's route if needed
   useEffect(() => {

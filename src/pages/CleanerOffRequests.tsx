@@ -24,8 +24,14 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { format, differenceInDays, isPast, isFuture } from 'date-fns';
+import { differenceInDays, isPast, isFuture, format } from 'date-fns';
 import OffRequestModal from '@/components/modals/OffRequestModal';
+
+// Helper to parse date string as local date (avoids timezone issues)
+const parseLocalDate = (dateString: string): Date => {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day, 12, 0, 0);
+};
 
 interface MyOffRequest {
   id: string;
@@ -310,10 +316,10 @@ const CleanerOffRequests = () => {
                 const StatusIcon = statusConf.icon;
                 const typeConf = requestTypeConfig[request.request_type as keyof typeof requestTypeConfig] || requestTypeConfig.time_off;
                 const TypeIcon = typeConf.icon;
-                const days = differenceInDays(new Date(request.end_date), new Date(request.start_date)) + 1;
+              const days = differenceInDays(parseLocalDate(request.end_date), parseLocalDate(request.start_date)) + 1;
                 const isCurrentlyActive = request.status === 'approved' && 
-                  !isPast(new Date(request.end_date)) &&
-                  !isFuture(new Date(request.start_date));
+                  !isPast(parseLocalDate(request.end_date)) &&
+                  !isFuture(parseLocalDate(request.start_date));
                 
                 return (
                   <div key={request.id} className={cn(
@@ -342,12 +348,12 @@ const CleanerOffRequests = () => {
                         {/* Date Range */}
                         <div className="flex items-center gap-2 text-sm">
                           <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">
-                            {format(new Date(request.start_date), 'dd/MM/yyyy')}
+                        <span className="font-medium">
+                            {format(parseLocalDate(request.start_date), 'dd/MM/yyyy')}
                           </span>
                           <ArrowRight className="h-4 w-4 text-muted-foreground" />
                           <span className="font-medium">
-                            {format(new Date(request.end_date), 'dd/MM/yyyy')}
+                            {format(parseLocalDate(request.end_date), 'dd/MM/yyyy')}
                           </span>
                           <Badge variant="outline">
                             {days} {isEnglish ? (days === 1 ? 'day' : 'days') : (days === 1 ? 'dia' : 'dias')}
