@@ -44,6 +44,7 @@ import JobCompletionModal, { PaymentData } from '@/components/modals/JobCompleti
 import OffRequestModal, { OffRequestType } from '@/components/modals/OffRequestModal';
 import AvailabilityManager from '@/components/schedule/AvailabilityManager';
 import ConfirmDialog from '@/components/modals/ConfirmDialog';
+import { notifyJobCreated, notifyJobUpdated, notifyJobCancelled, notifyVisitCreated } from '@/hooks/useNotifications';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, startOfWeek, endOfWeek, addWeeks, subWeeks, isSameDay, addDays, subDays, parseISO } from 'date-fns';
 
 type ViewType = 'day' | 'week' | 'month' | 'timeline';
@@ -496,8 +497,31 @@ const Schedule = () => {
         return;
       }
       
-      logActivity('job_created', `Job created for ${jobData.clientName}`, undefined, jobData.clientName);
+      logActivity('job_created', `Job created for ${jobData.clientName}`, data?.id, jobData.clientName);
       toast.success('Job scheduled successfully');
+      
+      // Send notification to the assigned cleaner
+      if (jobData.employeeId) {
+        const jobIsVisit = (jobData as any).jobType === 'visit';
+        if (jobIsVisit) {
+          await notifyVisitCreated(
+            jobData.employeeId,
+            (jobData as any).visitPurpose || 'Visit',
+            jobData.date,
+            jobData.address,
+            data?.id || ''
+          );
+        } else {
+          await notifyJobCreated(
+            jobData.employeeId,
+            jobData.clientName,
+            jobData.date,
+            jobData.time,
+            jobData.address,
+            data?.id || ''
+          );
+        }
+      }
       
       // Refresh jobs list
       await fetchJobs();
@@ -544,6 +568,16 @@ const Schedule = () => {
       logActivity('job_updated', `Job updated for ${updatedJobData.clientName}`, editingJob.id, updatedJobData.clientName);
       toast.success('Job updated successfully');
       
+      // Send notification to the assigned cleaner if changed or still assigned
+      if (updatedJobData.employeeId) {
+        await notifyJobUpdated(
+          updatedJobData.employeeId,
+          updatedJobData.clientName,
+          'Schedule updated',
+          editingJob.id
+        );
+      }
+      
       await fetchJobs();
       setEditingJob(null);
     } catch (error) {
@@ -571,6 +605,16 @@ const Schedule = () => {
       
       logActivity('job_cancelled', `Job cancelled for ${jobToDelete.clientName}`, jobToDelete.id, jobToDelete.clientName);
       toast.success('Job deleted successfully');
+      
+      // Notify cleaner about job cancellation
+      if (jobToDelete.employeeId) {
+        await notifyJobCancelled(
+          jobToDelete.employeeId,
+          jobToDelete.clientName,
+          jobToDelete.date,
+          jobToDelete.id
+        );
+      }
       
       await fetchJobs();
       setJobToDelete(null);

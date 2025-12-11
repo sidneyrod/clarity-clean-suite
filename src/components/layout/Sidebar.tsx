@@ -23,7 +23,8 @@ import {
   Handshake,
   DollarSign,
   Clock,
-  CalendarX
+  CalendarX,
+  Bell
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -105,6 +106,9 @@ const Sidebar = () => {
   if (isAdminOrManager) {
     operationsItems.push({ path: '/activity-log', label: t.nav.activityLog, icon: ClipboardList });
   }
+  
+  // Notifications - All users
+  operationsItems.push({ path: '/notifications', label: 'Notifications', icon: Bell });
 
   // =============================
   // MODULE 2: CLIENTS & CONTRACTS
