@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
-import { User, Mail, Phone, MapPin, Shield, DollarSign, Briefcase, Loader2, Lock, Key } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Shield, DollarSign, Briefcase, Loader2, Lock } from 'lucide-react';
 import { userSchema, validateForm } from '@/lib/validations';
 import { CanadianProvince, EmploymentType, provinceNames } from '@/stores/payrollStore';
 
@@ -69,9 +69,6 @@ const AddUserModal = ({ open, onOpenChange, onSubmit, editUser }: AddUserModalPr
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
-  const [showResetPassword, setShowResetPassword] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   // Reset form when modal opens/closes or editUser changes
   useEffect(() => {
@@ -79,50 +76,8 @@ const AddUserModal = ({ open, onOpenChange, onSubmit, editUser }: AddUserModalPr
       setFormData(editUser || initialFormData);
       setErrors({});
       setActiveTab('general');
-      setShowResetPassword(false);
-      setNewPassword('');
     }
   }, [open, editUser]);
-
-  const handleResetPassword = async () => {
-    if (!editUser?.id || newPassword.length < 6) {
-      toast({ title: t.common.error, description: 'Password must be at least 6 characters', variant: 'destructive' });
-      return;
-    }
-
-    setIsResettingPassword(true);
-    try {
-      const { data: session } = await supabase.auth.getSession();
-      
-      if (!session.session?.access_token) {
-        throw new Error('Not authenticated');
-      }
-
-      const response = await supabase.functions.invoke('reset-user-password', {
-        body: {
-          userId: editUser.id,
-          newPassword: newPassword,
-        },
-      });
-
-      if (response.error) {
-        throw new Error(response.error.message || 'Failed to reset password');
-      }
-
-      if (response.data?.error) {
-        throw new Error(response.data.error);
-      }
-
-      toast({ title: t.common.success, description: 'Password updated successfully' });
-      setShowResetPassword(false);
-      setNewPassword('');
-    } catch (err: any) {
-      console.error('Error resetting password:', err);
-      toast({ title: t.common.error, description: err.message || 'Failed to reset password', variant: 'destructive' });
-    } finally {
-      setIsResettingPassword(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -375,66 +330,6 @@ const AddUserModal = ({ open, onOpenChange, onSubmit, editUser }: AddUserModalPr
                 </div>
               )}
 
-              {/* Password reset for existing users */}
-              {!isNewUser && (
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <Key className="h-3.5 w-3.5 text-muted-foreground" />
-                    Password Management
-                  </Label>
-                  {!showResetPassword ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowResetPassword(true)}
-                      className="w-full"
-                    >
-                      <Key className="h-4 w-4 mr-2" />
-                      Reset User Password
-                    </Button>
-                  ) : (
-                    <div className="space-y-2 p-3 rounded-lg border border-border bg-muted/30">
-                      <Input
-                        type="password"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="New password (min 6 characters)"
-                        className="placeholder:text-muted-foreground/50"
-                        minLength={6}
-                      />
-                      <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setShowResetPassword(false);
-                            setNewPassword('');
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={handleResetPassword}
-                          disabled={isResettingPassword || newPassword.length < 6}
-                        >
-                          {isResettingPassword ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Updating...
-                            </>
-                          ) : (
-                            'Update Password'
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* Address Fields */}
               <div className="space-y-3">
