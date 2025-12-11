@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { logAuditEntry } from '@/hooks/useAuditLog';
+import { notifyJobUpdated } from '@/hooks/useNotifications';
 import type { Visit } from '@/pages/VisitHistory';
 
 interface EditVisitModalProps {
@@ -80,6 +81,16 @@ const EditVisitModal = ({ open, onOpenChange, visit, onSuccess }: EditVisitModal
           }
         }
       }, user?.id, user?.profile?.company_id);
+
+      // Notify the assigned cleaner about the visit update
+      if (visit.employeeId) {
+        await notifyJobUpdated(
+          visit.employeeId,
+          visit.clientName,
+          'Visit details updated',
+          visit.id
+        );
+      }
 
       toast.success('Visit updated successfully');
       onSuccess();

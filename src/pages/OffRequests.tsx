@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { format, differenceInDays, isPast, isFuture, startOfMonth, endOfMonth } from 'date-fns';
 import { useRoleAccess } from '@/hooks/useRoleAccess';
+import { notifyOffRequestApproved, notifyOffRequestRejected } from '@/hooks/useNotifications';
 
 interface OffRequest {
   id: string;
@@ -221,6 +222,14 @@ const OffRequests = () => {
         });
       }
       
+      // Notify the cleaner about approval
+      await notifyOffRequestApproved(
+        request?.cleaner_id || '',
+        request?.start_date || '',
+        request?.end_date || '',
+        id
+      );
+      
       toast.success(isEnglish 
         ? 'Off request approved. Cleaner is now blocked from schedule.' 
         : 'Solicitação aprovada. Cleaner bloqueado da agenda.');
@@ -268,6 +277,15 @@ const OffRequests = () => {
           },
         });
       }
+      
+      // Notify the cleaner about rejection
+      await notifyOffRequestRejected(
+        request?.cleaner_id || '',
+        request?.start_date || '',
+        request?.end_date || '',
+        'Request was rejected by admin',
+        id
+      );
       
       toast.success(isEnglish ? 'Off request rejected' : 'Solicitação rejeitada');
       await fetchRequests();
