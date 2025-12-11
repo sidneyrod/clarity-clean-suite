@@ -43,6 +43,12 @@ interface Client {
   status: 'active' | 'inactive';
   locationsCount: number;
   locations: Location[];
+  // Address fields
+  address: string;
+  city: string;
+  province: string;
+  postalCode: string;
+  country: string;
 }
 
 const Clients = () => {
@@ -84,6 +90,11 @@ const Clients = () => {
           phone,
           client_type,
           notes,
+          address,
+          city,
+          province,
+          postal_code,
+          country,
           client_locations (
             id,
             address,
@@ -125,6 +136,12 @@ const Clients = () => {
           petDetails: loc.pet_details,
           parkingInfo: loc.parking_info,
         })),
+        // Address fields
+        address: client.address || '',
+        city: client.city || '',
+        province: client.province || '',
+        postalCode: client.postal_code || '',
+        country: client.country || 'Canada',
       }));
 
       setClients(mappedClients);
@@ -183,8 +200,14 @@ const Clients = () => {
             phone: clientData.phone,
             client_type: clientData.type,
             notes: clientData.notes,
+            address: clientData.address,
+            city: clientData.city,
+            province: clientData.province,
+            postal_code: clientData.postalCode,
+            country: clientData.country,
           })
-          .eq('id', editClient.id);
+          .eq('id', editClient.id)
+          .eq('company_id', user.profile.company_id);
 
         if (error) throw error;
         
@@ -200,6 +223,11 @@ const Clients = () => {
             phone: clientData.phone,
             client_type: clientData.type,
             notes: clientData.notes,
+            address: clientData.address,
+            city: clientData.city,
+            province: clientData.province,
+            postal_code: clientData.postalCode,
+            country: clientData.country,
           });
 
         if (error) throw error;
@@ -476,16 +504,17 @@ const Clients = () => {
         onOpenChange={setIsAddModalOpen}
         onSubmit={handleAddClient}
         editClient={editClient ? {
+          id: editClient.id,
           name: editClient.name,
           email: editClient.email,
           phone: editClient.phone,
-          address: editClient.locations[0]?.address || '',
-          city: editClient.locations[0]?.city || '',
-          province: editClient.locations[0]?.province || '',
-          country: 'Canada',
-          postalCode: editClient.locations[0]?.postal_code || '',
+          address: editClient.address,
+          city: editClient.city,
+          province: editClient.province,
+          country: editClient.country,
+          postalCode: editClient.postalCode,
           type: editClient.type,
-          contactPerson: editClient.name,
+          contactPerson: '',
           notes: editClient.notes,
           isActive: editClient.status === 'active',
         } : null}
