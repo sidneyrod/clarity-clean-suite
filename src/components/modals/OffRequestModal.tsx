@@ -8,10 +8,26 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CalendarIcon, CalendarOff, Palmtree, Clock, UserX, Stethoscope, Calendar as CalendarMonth } from 'lucide-react';
-import { format, differenceInDays, startOfMonth, endOfMonth, addMonths } from 'date-fns';
+import { differenceInDays, startOfMonth, endOfMonth, addMonths, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
 import { Badge } from '@/components/ui/badge';
+
+// Helper to format date to yyyy-MM-dd in local timezone (avoids timezone issues)
+const formatLocalDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// Helper to format date for display
+const formatDisplayDate = (date: Date): string => {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
 
 // Request Duration Types (what the user is requesting)
 export type OffRequestDurationType = 'day_off' | 'multi_day_off' | 'full_month_block';
@@ -107,6 +123,8 @@ const OffRequestModal = ({ open, onOpenChange, onSubmit, employeeName }: OffRequ
   const [observation, setObservation] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedMonth, setSelectedMonth] = useState<Date | undefined>();
+  const [singleDateCalendarOpen, setSingleDateCalendarOpen] = useState(false);
+  const [rangeDateCalendarOpen, setRangeDateCalendarOpen] = useState(false);
 
   // Handle duration type change
   const handleDurationTypeChange = (value: OffRequestDurationType) => {
@@ -123,6 +141,35 @@ const OffRequestModal = ({ open, onOpenChange, onSubmit, employeeName }: OffRequ
     const monthEnd = endOfMonth(targetMonth);
     setDateRange({ from: monthStart, to: monthEnd });
     setSelectedMonth(targetMonth);
+  };
+
+  // Handle single date selection with auto-close
+  const handleSingleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      // Create date at noon to avoid timezone issues
+      const safeDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0);
+      setDateRange({ from: safeDate, to: safeDate });
+      setSingleDateCalendarOpen(false);
+    }
+  };
+
+  // Handle range date selection with auto-close when both dates are selected
+  const handleRangeDateSelect = (range: DateRange | undefined) => {
+    if (range?.from) {
+      // Create safe dates at noon to avoid timezone issues
+      const safeFrom = new Date(range.from.getFullYear(), range.from.getMonth(), range.from.getDate(), 12, 0, 0);
+      const safeTo = range.to 
+        ? new Date(range.to.getFullYear(), range.to.getMonth(), range.to.getDate(), 12, 0, 0) 
+        : undefined;
+      setDateRange({ from: safeFrom, to: safeTo });
+      
+      // Auto-close when both dates are selected
+      if (range.from && range.to) {
+        setRangeDateCalendarOpen(false);
+      }
+    } else {
+      setDateRange(undefined);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -154,9 +201,10 @@ const OffRequestModal = ({ open, onOpenChange, onSubmit, employeeName }: OffRequ
     
     const legacyType = mapToLegacyType(durationType, reasonType);
     
+    // Use formatLocalDate to prevent timezone issues
     onSubmit({
-      startDate: format(dateRange!.from!, 'yyyy-MM-dd'),
-      endDate: format(finalEndDate!, 'yyyy-MM-dd'),
+      startDate: formatLocalDate(dateRange!.from!),
+      endDate: formatLocalDate(finalEndDate!),
       reason: observation.trim(),
       requestType: legacyType,
       durationType,
@@ -176,7 +224,6 @@ const OffRequestModal = ({ open, onOpenChange, onSubmit, employeeName }: OffRequ
     : 0;
 
   const DurationIcon = durationTypeConfig[durationType].icon;
-  const ReasonIcon = reasonTypeConfig[reasonType].icon;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -265,7 +312,7 @@ const OffRequestModal = ({ open, onOpenChange, onSubmit, employeeName }: OffRequ
                 {dateRange?.from && (
                   <div className="p-3 rounded-lg bg-muted/50 text-sm">
                     <span className="font-medium">
-                      {format(dateRange.from, 'dd/MM/yyyy')} - {format(dateRange.to!, 'dd/MM/yyyy')}
+                      {formatDisplayDate(dateRange.from)} - {formatDisplayDate(dateRange.to!)}
                     </span>
                     <Badge variant="outline" className="ml-2">
                       {daysDiff} {isEnglish ? 'days' : 'dias'}
@@ -275,7 +322,7 @@ const OffRequestModal = ({ open, onOpenChange, onSubmit, employeeName }: OffRequ
               </div>
             ) : durationType === 'day_off' ? (
               // Single date selection for day off
-              <Popover>
+              <Popover open={singleDateCalendarOpen} onOpenChange={setSingleDateCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -287,7 +334,7 @@ const OffRequestModal = ({ open, onOpenChange, onSubmit, employeeName }: OffRequ
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {dateRange?.from 
-                      ? format(dateRange.from, 'dd/MM/yyyy')
+                      ? formatDisplayDate(dateRange.from)
                       : <span>{isEnglish ? 'Select date' : 'Selecione a data'}</span>
                     }
                   </Button>
@@ -297,15 +344,14 @@ const OffRequestModal = ({ open, onOpenChange, onSubmit, employeeName }: OffRequ
                     initialFocus
                     mode="single"
                     selected={dateRange?.from}
-                    onSelect={(date) => setDateRange(date ? { from: date, to: date } : undefined)}
+                    onSelect={handleSingleDateSelect}
                     disabled={(date) => date < new Date()}
-                    className="pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
             ) : (
               // Date range selection for multi-day
-              <Popover>
+              <Popover open={rangeDateCalendarOpen} onOpenChange={setRangeDateCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -319,10 +365,10 @@ const OffRequestModal = ({ open, onOpenChange, onSubmit, employeeName }: OffRequ
                     {dateRange?.from ? (
                       dateRange.to ? (
                         <>
-                          {format(dateRange.from, 'dd/MM/yyyy')} - {format(dateRange.to, 'dd/MM/yyyy')}
+                          {formatDisplayDate(dateRange.from)} - {formatDisplayDate(dateRange.to)}
                         </>
                       ) : (
-                        format(dateRange.from, 'dd/MM/yyyy')
+                        formatDisplayDate(dateRange.from)
                       )
                     ) : (
                       <span>{isEnglish ? 'Select dates' : 'Selecione as datas'}</span>
@@ -335,10 +381,9 @@ const OffRequestModal = ({ open, onOpenChange, onSubmit, employeeName }: OffRequ
                     mode="range"
                     defaultMonth={dateRange?.from}
                     selected={dateRange}
-                    onSelect={setDateRange}
+                    onSelect={handleRangeDateSelect}
                     numberOfMonths={2}
                     disabled={(date) => date < new Date()}
-                    className="pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
@@ -412,10 +457,10 @@ const OffRequestModal = ({ open, onOpenChange, onSubmit, employeeName }: OffRequ
           
           <DialogFooter className="pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {isEnglish ? 'Cancel' : 'Cancelar'}
             </Button>
             <Button type="submit" disabled={!dateRange?.from}>
-              Submit Request
+              {isEnglish ? 'Submit Request' : 'Enviar Solicitação'}
             </Button>
           </DialogFooter>
         </form>

@@ -29,7 +29,10 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 const WorkspaceTabs = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { tabs, activeTabId, closeTab, setActiveTab, closeAllTabs, closeOtherTabs } = useWorkspaceStore();
+  const { activeTabId, closeTab, setActiveTab, closeAllTabs, closeOtherTabs, currentUserId, userTabs } = useWorkspaceStore();
+  
+  // Get current user's tabs
+  const tabs = currentUserId && userTabs[currentUserId] ? userTabs[currentUserId] : [];
   const [confirmClose, setConfirmClose] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeftFade, setShowLeftFade] = useState(false);

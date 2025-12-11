@@ -12,11 +12,17 @@ export interface WorkspaceTab {
   formState?: Record<string, any>;
 }
 
+interface UserTabsState {
+  [userId: string]: WorkspaceTab[];
+}
+
 interface WorkspaceState {
-  tabs: WorkspaceTab[];
+  userTabs: UserTabsState;
+  currentUserId: string | null;
   activeTabId: string | null;
   
   // Actions
+  setCurrentUser: (userId: string | null) => void;
   openTab: (path: string, label: string, icon?: string) => void;
   closeTab: (id: string) => void;
   setActiveTab: (id: string) => void;
@@ -25,6 +31,9 @@ interface WorkspaceState {
   updateTabFormState: (id: string, formState: Record<string, any>) => void;
   closeAllTabs: () => void;
   closeOtherTabs: (id: string) => void;
+  
+  // Computed getter for current user tabs
+  tabs: WorkspaceTab[];
 }
 
 const getTabIdFromPath = (path: string) => {
@@ -33,28 +42,77 @@ const getTabIdFromPath = (path: string) => {
   return pathWithoutQuery.replace(/^\//, '') || 'dashboard';
 };
 
+const getDefaultTabs = (): WorkspaceTab[] => [{
+  id: 'dashboard',
+  path: '/',
+  label: 'Home',
+  isActive: true,
+}];
+
 export const useWorkspaceStore = create<WorkspaceState>()(
   persist(
     (set, get) => ({
-      tabs: [],
-      activeTabId: null,
+      userTabs: {},
+      currentUserId: null,
+      activeTabId: 'dashboard',
+      
+      get tabs() {
+        const { currentUserId, userTabs } = get();
+        if (!currentUserId) return getDefaultTabs();
+        return userTabs[currentUserId] || getDefaultTabs();
+      },
+
+      setCurrentUser: (userId: string | null) => {
+        if (!userId) {
+          set({ currentUserId: null, activeTabId: 'dashboard' });
+          return;
+        }
+        
+        const { userTabs } = get();
+        const existingTabs = userTabs[userId];
+        
+        if (!existingTabs || existingTabs.length === 0) {
+          // Initialize tabs for new user
+          set({
+            currentUserId: userId,
+            userTabs: {
+              ...userTabs,
+              [userId]: getDefaultTabs(),
+            },
+            activeTabId: 'dashboard',
+          });
+        } else {
+          // Restore existing tabs and find active one
+          const activeTab = existingTabs.find(t => t.isActive) || existingTabs[0];
+          set({
+            currentUserId: userId,
+            activeTabId: activeTab?.id || 'dashboard',
+          });
+        }
+      },
 
       openTab: (path: string, label: string, icon?: string) => {
         const id = getTabIdFromPath(path);
-        const { tabs } = get();
+        const { currentUserId, userTabs } = get();
+        
+        if (!currentUserId) return;
+        
+        const tabs = userTabs[currentUserId] || getDefaultTabs();
         
         // Check if tab already exists
         const existingTab = tabs.find(tab => tab.id === id);
         
         if (existingTab) {
-          // Just activate the existing tab and update the path (for proper restoration)
+          // Just activate the existing tab and update the path
           set({
-            tabs: tabs.map(tab => ({
-              ...tab,
-              isActive: tab.id === id,
-              // Update path in case it changed
-              path: tab.id === id ? path : tab.path,
-            })),
+            userTabs: {
+              ...userTabs,
+              [currentUserId]: tabs.map(tab => ({
+                ...tab,
+                isActive: tab.id === id,
+                path: tab.id === id ? path : tab.path,
+              })),
+            },
             activeTabId: id,
           });
         } else {
@@ -68,29 +126,34 @@ export const useWorkspaceStore = create<WorkspaceState>()(
           };
           
           set({
-            tabs: [
-              ...tabs.map(tab => ({ ...tab, isActive: false })),
-              newTab,
-            ],
+            userTabs: {
+              ...userTabs,
+              [currentUserId]: [
+                ...tabs.map(tab => ({ ...tab, isActive: false })),
+                newTab,
+              ],
+            },
             activeTabId: id,
           });
         }
       },
 
       closeTab: (id: string) => {
-        const { tabs, activeTabId } = get();
+        const { currentUserId, userTabs, activeTabId } = get();
+        
+        if (!currentUserId) return;
+        
+        const tabs = userTabs[currentUserId] || [];
         const tabIndex = tabs.findIndex(tab => tab.id === id);
         const newTabs = tabs.filter(tab => tab.id !== id);
         
         if (newTabs.length === 0) {
           // If closing the last tab, navigate to home/dashboard
           set({
-            tabs: [{
-              id: 'dashboard',
-              path: '/',
-              label: 'Home',
-              isActive: true,
-            }],
+            userTabs: {
+              ...userTabs,
+              [currentUserId]: getDefaultTabs(),
+            },
             activeTabId: 'dashboard',
           });
           return;
@@ -111,72 +174,128 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         }
         
         set({
-          tabs: newTabs.map(tab => ({
-            ...tab,
-            isActive: tab.id === newActiveId,
-          })),
+          userTabs: {
+            ...userTabs,
+            [currentUserId]: newTabs.map(tab => ({
+              ...tab,
+              isActive: tab.id === newActiveId,
+            })),
+          },
           activeTabId: newActiveId,
         });
       },
 
       setActiveTab: (id: string) => {
-        set(state => ({
-          tabs: state.tabs.map(tab => ({
-            ...tab,
-            isActive: tab.id === id,
-          })),
+        const { currentUserId, userTabs } = get();
+        
+        if (!currentUserId) return;
+        
+        const tabs = userTabs[currentUserId] || [];
+        
+        set({
+          userTabs: {
+            ...userTabs,
+            [currentUserId]: tabs.map(tab => ({
+              ...tab,
+              isActive: tab.id === id,
+            })),
+          },
           activeTabId: id,
-        }));
+        });
       },
 
       updateTabScrollPosition: (id: string, scrollPosition: number) => {
-        set(state => ({
-          tabs: state.tabs.map(tab =>
-            tab.id === id ? { ...tab, scrollPosition } : tab
-          ),
-        }));
+        const { currentUserId, userTabs } = get();
+        
+        if (!currentUserId) return;
+        
+        const tabs = userTabs[currentUserId] || [];
+        
+        set({
+          userTabs: {
+            ...userTabs,
+            [currentUserId]: tabs.map(tab =>
+              tab.id === id ? { ...tab, scrollPosition } : tab
+            ),
+          },
+        });
       },
 
       setTabUnsavedChanges: (id: string, hasUnsavedChanges: boolean) => {
-        set(state => ({
-          tabs: state.tabs.map(tab =>
-            tab.id === id ? { ...tab, hasUnsavedChanges } : tab
-          ),
-        }));
+        const { currentUserId, userTabs } = get();
+        
+        if (!currentUserId) return;
+        
+        const tabs = userTabs[currentUserId] || [];
+        
+        set({
+          userTabs: {
+            ...userTabs,
+            [currentUserId]: tabs.map(tab =>
+              tab.id === id ? { ...tab, hasUnsavedChanges } : tab
+            ),
+          },
+        });
       },
 
       updateTabFormState: (id: string, formState: Record<string, any>) => {
-        set(state => ({
-          tabs: state.tabs.map(tab =>
-            tab.id === id ? { ...tab, formState } : tab
-          ),
-        }));
+        const { currentUserId, userTabs } = get();
+        
+        if (!currentUserId) return;
+        
+        const tabs = userTabs[currentUserId] || [];
+        
+        set({
+          userTabs: {
+            ...userTabs,
+            [currentUserId]: tabs.map(tab =>
+              tab.id === id ? { ...tab, formState } : tab
+            ),
+          },
+        });
       },
 
       closeAllTabs: () => {
-        const { tabs } = get();
+        const { currentUserId, userTabs } = get();
+        
+        if (!currentUserId) return;
+        
+        const tabs = userTabs[currentUserId] || [];
+        
         if (tabs.length > 0) {
           // Keep only the first tab
           const firstTab = tabs[0];
           set({
-            tabs: [{ ...firstTab, isActive: true }],
+            userTabs: {
+              ...userTabs,
+              [currentUserId]: [{ ...firstTab, isActive: true }],
+            },
             activeTabId: firstTab.id,
           });
         }
       },
 
       closeOtherTabs: (id: string) => {
-        set(state => ({
-          tabs: state.tabs.filter(tab => tab.id === id).map(tab => ({
-            ...tab,
-            isActive: true,
-          })),
+        const { currentUserId, userTabs } = get();
+        
+        if (!currentUserId) return;
+        
+        const tabs = userTabs[currentUserId] || [];
+        
+        set({
+          userTabs: {
+            ...userTabs,
+            [currentUserId]: tabs.filter(tab => tab.id === id).map(tab => ({
+              ...tab,
+              isActive: true,
+            })),
+          },
           activeTabId: id,
-        }));
+        });
       },
     }),
     {
-      name: 'workspace-tabs',
+      name: 'workspace-tabs-v2',
     }
   )
 );
