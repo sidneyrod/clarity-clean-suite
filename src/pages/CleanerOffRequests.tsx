@@ -204,16 +204,14 @@ const CleanerOffRequests = () => {
   }
 
   return (
-    <div className="container px-4 py-8 lg:px-8 space-y-6">
-      <PageHeader 
-        title={isEnglish ? "My Off Requests" : "Minhas Solicitações de Folga"}
-        description={isEnglish 
-          ? "Request and track your time off" 
-          : "Solicite e acompanhe suas folgas"}
-      />
-
-      {/* Action Button */}
-      <div className="flex justify-end">
+    <div className="container px-4 py-4 lg:px-8 space-y-4">
+      <div className="flex items-center justify-between">
+        <PageHeader 
+          title={isEnglish ? "My Off Requests" : "Minhas Solicitações de Folga"}
+          description={isEnglish 
+            ? "Request and track your time off" 
+            : "Solicite e acompanhe suas folgas"}
+        />
         <Button onClick={() => setShowModal(true)} className="gap-2">
           <Plus className="h-4 w-4" />
           {isEnglish ? 'New Request' : 'Nova Solicitação'}
