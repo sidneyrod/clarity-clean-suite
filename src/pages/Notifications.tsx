@@ -190,24 +190,20 @@ export default function Notifications() {
       <PageHeader
         title={t.notifications?.title || 'Notifications'}
         description={t.notifications?.description || 'Manage your notifications and alerts'}
-        icon={Bell}
-        actions={
-          <div className="flex items-center gap-2">
-            {unreadCount > 0 && (
-              <Button variant="outline" onClick={markAllAsRead}>
-                <CheckCheck className="h-4 w-4 mr-2" />
-                {t.notifications?.markAllRead || 'Mark all read'}
-              </Button>
-            )}
-            {isAdmin && (
-              <Button onClick={() => setShowBroadcastModal(true)}>
-                <Send className="h-4 w-4 mr-2" />
-                {t.notifications?.sendBroadcast || 'Send Broadcast'}
-              </Button>
-            )}
-          </div>
-        }
-      />
+      >
+        {unreadCount > 0 && (
+          <Button variant="outline" onClick={markAllAsRead}>
+            <CheckCheck className="h-4 w-4 mr-2" />
+            {t.notifications?.markAllRead || 'Mark all read'}
+          </Button>
+        )}
+        {isAdmin && (
+          <Button onClick={() => setShowBroadcastModal(true)}>
+            <Send className="h-4 w-4 mr-2" />
+            {t.notifications?.sendBroadcast || 'Send Broadcast'}
+          </Button>
+        )}
+      </PageHeader>
 
       {/* Filters */}
       <Card>

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { NotificationSettings } from '@/components/settings/NotificationSettings';
 import { 
   Palette, 
   Globe, 
@@ -140,47 +141,7 @@ const Settings = () => {
         </Card>
 
         {/* Notifications */}
-        <Card className="border-border/50">
-          <CardHeader>
-            <CardTitle className="text-base font-medium flex items-center gap-2">
-              <Bell className="h-4 w-4 text-primary" />
-              {t.settings.notifications}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>{t.settings.emailNotifications}</Label>
-                <p className="text-sm text-muted-foreground">Receive updates via email</p>
-              </div>
-              <Switch defaultChecked />
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>{t.settings.pushNotifications}</Label>
-                <p className="text-sm text-muted-foreground">Browser push notifications</p>
-              </div>
-              <Switch defaultChecked />
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Job Reminders</Label>
-                <p className="text-sm text-muted-foreground">Reminder 30 min before jobs</p>
-              </div>
-              <Switch defaultChecked />
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Payment Alerts</Label>
-                <p className="text-sm text-muted-foreground">Invoice and payment updates</p>
-              </div>
-              <Switch defaultChecked />
-            </div>
-          </CardContent>
-        </Card>
+        <NotificationSettings />
 
         {/* Integrations */}
         <Card className="border-border/50">
