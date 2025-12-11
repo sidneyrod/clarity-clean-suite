@@ -18,6 +18,7 @@ import {
   User
 } from 'lucide-react';
 import ChangePasswordModal from '@/components/modals/ChangePasswordModal';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -475,6 +476,9 @@ const TopBar = () => {
               </div>
             </TooltipContent>
           </Tooltip>
+
+          {/* Notification Bell */}
+          <NotificationBell />
 
           {/* Language Switcher */}
           <DropdownMenu>
