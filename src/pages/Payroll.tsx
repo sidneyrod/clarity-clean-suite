@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import PageHeader from '@/components/ui/page-header';
 import DataTable, { Column } from '@/components/ui/data-table';
 import StatusBadge from '@/components/ui/status-badge';
@@ -15,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DollarSign, Clock, Calendar, FileText, Download, CheckCircle, Settings, Building2, MapPin, Percent, Play, RefreshCw } from 'lucide-react';
+import { DollarSign, Clock, Calendar, FileText, Download, CheckCircle, Settings, Building2, MapPin, Percent, Play, RefreshCw, Banknote, AlertTriangle, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { usePayrollStore, provincialOvertimeRules, provinceNames, CanadianProvince, PayPeriodType } from '@/stores/payrollStore';
@@ -26,6 +28,18 @@ import { logActivity } from '@/stores/activityStore';
 import { useCompanyStore } from '@/stores/companyStore';
 import { generatePayrollReportPdf, openPdfPreview, exportToCsv } from '@/utils/pdfGenerator';
 
+interface CashPayment {
+  id: string;
+  cleaner_id: string;
+  cleaner_name: string;
+  job_id: string;
+  service_date: string;
+  amount_due: number;
+  cash_received_by_cleaner: boolean;
+  status: string;
+  notes: string | null;
+}
+
 const statusColors: Record<string, { label: string; variant: 'active' | 'pending' | 'completed' | 'inactive' }> = {
   pending: { label: 'Pending', variant: 'pending' },
   'in-progress': { label: 'In Progress', variant: 'active' },
@@ -35,6 +49,7 @@ const statusColors: Record<string, { label: string; variant: 'active' | 'pending
 
 const Payroll = () => {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const { companySettings, setDefaultPayPeriod, setDefaultProvince, updateCompanySettings } = usePayrollStore();
   const { profile, branding } = useCompanyStore();
   
@@ -58,6 +73,105 @@ const Payroll = () => {
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [settingsTab, setSettingsTab] = useState('general');
   const [notification, setNotification] = useState<{ periodEnded: boolean; daysOverdue: number } | null>(null);
+  
+  // Cash payments state
+  const [cashPayments, setCashPayments] = useState<CashPayment[]>([]);
+  const [loadingCashPayments, setLoadingCashPayments] = useState(false);
+
+  // Fetch cash payments pending confirmation
+  const fetchCashPayments = useCallback(async () => {
+    try {
+      setLoadingCashPayments(true);
+      let companyId = user?.profile?.company_id;
+      if (!companyId) {
+        const { data: companyIdData } = await supabase.rpc('get_user_company_id');
+        companyId = companyIdData;
+      }
+      
+      if (!companyId) {
+        setLoadingCashPayments(false);
+        return;
+      }
+      
+      const { data, error } = await supabase
+        .from('cleaner_payments')
+        .select(`
+          id,
+          cleaner_id,
+          job_id,
+          service_date,
+          amount_due,
+          cash_received_by_cleaner,
+          status,
+          notes,
+          profiles:cleaner_id(first_name, last_name)
+        `)
+        .eq('company_id', companyId)
+        .eq('cash_received_by_cleaner', true)
+        .eq('status', 'cash_received')
+        .order('service_date', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching cash payments:', error);
+        setLoadingCashPayments(false);
+        return;
+      }
+      
+      const mapped: CashPayment[] = (data || []).map((p: any) => ({
+        id: p.id,
+        cleaner_id: p.cleaner_id,
+        cleaner_name: p.profiles 
+          ? `${p.profiles.first_name || ''} ${p.profiles.last_name || ''}`.trim() || 'Unknown'
+          : 'Unknown',
+        job_id: p.job_id,
+        service_date: p.service_date,
+        amount_due: p.amount_due,
+        cash_received_by_cleaner: p.cash_received_by_cleaner,
+        status: p.status,
+        notes: p.notes,
+      }));
+      
+      setCashPayments(mapped);
+      setLoadingCashPayments(false);
+    } catch (error) {
+      console.error('Error in fetchCashPayments:', error);
+      setLoadingCashPayments(false);
+    }
+  }, [user]);
+
+  // Confirm cash payment (admin keeps cash or deducts from payroll)
+  const handleConfirmCashPayment = async (paymentId: string, action: 'keep_cash' | 'deduct_payroll') => {
+    try {
+      const { error } = await supabase
+        .from('cleaner_payments')
+        .update({ 
+          status: action === 'keep_cash' ? 'cash_confirmed' : 'deduct_from_payroll',
+          notes: action === 'keep_cash' 
+            ? 'Cash kept by cleaner - confirmed by admin' 
+            : 'Cash to be deducted from payroll'
+        })
+        .eq('id', paymentId);
+      
+      if (error) {
+        console.error('Error updating cash payment:', error);
+        toast.error('Failed to update payment');
+        return;
+      }
+      
+      logActivity('payment_confirmed', `Cash payment ${action === 'keep_cash' ? 'confirmed' : 'marked for deduction'}`, paymentId);
+      toast.success(action === 'keep_cash' 
+        ? 'Cash payment confirmed - cleaner keeps the cash' 
+        : 'Cash marked for payroll deduction');
+      fetchCashPayments();
+    } catch (error) {
+      console.error('Error in handleConfirmCashPayment:', error);
+      toast.error('Failed to process payment');
+    }
+  };
+
+  useEffect(() => {
+    fetchCashPayments();
+  }, [fetchCashPayments]);
 
   // Check for notifications
   useEffect(() => {
@@ -259,6 +373,7 @@ const Payroll = () => {
       <Tabs defaultValue="current" className="space-y-6">
         <TabsList>
           <TabsTrigger value="current">Current Period</TabsTrigger>
+          <TabsTrigger value="cash">Cash Payments</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
         
@@ -307,12 +422,93 @@ const Payroll = () => {
           )}
         </TabsContent>
         
+        {/* Cash Payments Tab */}
+        <TabsContent value="cash" className="space-y-6">
+          <Card className="border-border/50 border-l-4 border-l-warning">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-medium flex items-center gap-2">
+                  <Banknote className="h-4 w-4 text-warning" />
+                  Cash Payments Pending Confirmation
+                </CardTitle>
+                <Button variant="outline" size="sm" onClick={fetchCashPayments}>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                Review and manage cash payments received by cleaners. You can confirm the cleaner keeps the cash or mark it for payroll deduction.
+              </p>
+            </CardHeader>
+            <CardContent>
+              {loadingCashPayments ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                </div>
+              ) : cashPayments.length > 0 ? (
+                <div className="space-y-3">
+                  {cashPayments.map((payment) => (
+                    <div key={payment.id} className="flex items-center justify-between p-4 rounded-lg border border-warning/30 bg-warning/5">
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-lg bg-warning/20 flex items-center justify-center">
+                          <Banknote className="h-5 w-5 text-warning" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{payment.cleaner_name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Service Date: {payment.service_date}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="font-semibold text-lg">${payment.amount_due.toFixed(2)}</p>
+                          <Badge variant="outline" className="text-xs border-warning text-warning">
+                            <AlertTriangle className="h-3 w-3 mr-1" />
+                            Cash Pending
+                          </Badge>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="gap-1.5 text-xs"
+                            onClick={() => handleConfirmCashPayment(payment.id, 'keep_cash')}
+                          >
+                            <Check className="h-3 w-3" />
+                            Cleaner Keeps Cash
+                          </Button>
+                          <Button 
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5 text-xs border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                            onClick={() => handleConfirmCashPayment(payment.id, 'deduct_payroll')}
+                          >
+                            <DollarSign className="h-3 w-3" />
+                            Deduct from Payroll
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <CheckCircle className="h-12 w-12 text-success mx-auto mb-4" />
+                  <p className="text-muted-foreground">No pending cash payments to review</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
         <TabsContent value="history">
           <DataTable 
             columns={periodColumns} 
             data={periods.filter(p => p.status === 'paid' || p.status === 'approved')} 
             onRowClick={setSelectedPeriod} 
-            emptyMessage={t.common.noData} 
+            emptyMessage={t.common.noData}
           />
         </TabsContent>
       </Tabs>
