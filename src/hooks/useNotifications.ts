@@ -135,6 +135,27 @@ export const notifyJobCancelled = async (
   });
 };
 
+export const notifyJobCompleted = async (
+  cleanerName: string,
+  clientName: string,
+  jobId: string,
+  paymentAmount?: number,
+  paymentMethod?: string
+) => {
+  const paymentInfo = paymentAmount && paymentMethod 
+    ? ` - Payment: $${paymentAmount.toFixed(2)} (${paymentMethod})`
+    : '';
+  
+  return createNotification({
+    role_target: 'admin',
+    title: 'Job Completed',
+    message: `${cleanerName} completed job for ${clientName}${paymentInfo}`,
+    type: 'job',
+    severity: 'info',
+    metadata: { job_id: jobId, cleaner_name: cleanerName, client_name: clientName }
+  });
+};
+
 export const notifyVisitCreated = async (
   cleanerId: string,
   purpose: string,

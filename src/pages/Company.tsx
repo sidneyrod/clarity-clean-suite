@@ -159,10 +159,12 @@ const Company = () => {
     });
     const estimateChanged = JSON.stringify({
       default_hourly_rate: estimateConfig.default_hourly_rate,
-      tax_rate: estimateConfig.tax_rate
+      tax_rate: estimateConfig.tax_rate,
+      invoice_generation_mode: estimateConfig.invoice_generation_mode
     }) !== JSON.stringify({
       default_hourly_rate: initialEstimateConfig.default_hourly_rate,
-      tax_rate: initialEstimateConfig.tax_rate
+      tax_rate: initialEstimateConfig.tax_rate,
+      invoice_generation_mode: initialEstimateConfig.invoice_generation_mode
     });
     
     return profileChanged || brandingChanged || estimateChanged;
