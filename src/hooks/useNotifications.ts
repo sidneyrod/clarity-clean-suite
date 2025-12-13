@@ -1,39 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { 
+  useNotificationStore, 
+  initializeNotificationSubscription,
+  Notification,
+  NotificationType,
+  NotificationSeverity,
+  NotificationPreferences
+} from '@/stores/notificationStore';
 
-export type NotificationType = 'job' | 'visit' | 'off_request' | 'invoice' | 'payroll' | 'system';
-export type NotificationSeverity = 'info' | 'warning' | 'critical';
-
-export interface Notification {
-  id: string;
-  company_id: string;
-  recipient_user_id: string | null;
-  role_target: string | null;
-  title: string;
-  message: string;
-  type: NotificationType;
-  severity: NotificationSeverity;
-  metadata: Record<string, unknown> | null;
-  is_read: boolean;
-  read_at: string | null;
-  created_at: string;
-}
-
-export interface NotificationPreferences {
-  id: string;
-  user_id: string;
-  company_id: string;
-  notify_new_jobs: boolean;
-  notify_job_changes: boolean;
-  notify_job_cancellations: boolean;
-  notify_visits: boolean;
-  notify_off_requests: boolean;
-  notify_off_request_status: boolean;
-  notify_invoices: boolean;
-  notify_payroll: boolean;
-  notify_system: boolean;
-}
+// Re-export types
+export type { Notification, NotificationType, NotificationSeverity, NotificationPreferences };
 
 interface CreateNotificationParams {
   recipient_user_id?: string | null;
@@ -47,181 +25,31 @@ interface CreateNotificationParams {
 
 export const useNotifications = () => {
   const { user } = useAuth();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
-
-  const fetchNotifications = useCallback(async (limit = 50) => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (error) throw error;
-      setNotifications((data || []) as unknown as Notification[]);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  const fetchUnreadCount = useCallback(async () => {
-    if (!user) return;
-
-    try {
-      const { count, error } = await supabase
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_read', false);
-
-      if (error) throw error;
-      setUnreadCount(count || 0);
-    } catch (error) {
-      console.error('Error fetching unread count:', error);
-    }
-  }, [user]);
-
-  const fetchPreferences = useCallback(async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('notification_preferences')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (error) throw error;
-      setPreferences(data);
-    } catch (error) {
-      console.error('Error fetching notification preferences:', error);
-    }
-  }, [user]);
-
-  const markAsRead = useCallback(async (notificationId: string) => {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true, read_at: new Date().toISOString() })
-        .eq('id', notificationId);
-
-      if (error) throw error;
-
-      setNotifications(prev =>
-        prev.map(n => n.id === notificationId ? { ...n, is_read: true, read_at: new Date().toISOString() } : n)
-      );
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-    }
-  }, []);
-
-  const markAllAsRead = useCallback(async () => {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true, read_at: new Date().toISOString() })
-        .eq('is_read', false);
-
-      if (error) throw error;
-
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true, read_at: new Date().toISOString() })));
-      setUnreadCount(0);
-    } catch (error) {
-      console.error('Error marking all notifications as read:', error);
-    }
-  }, []);
-
-  const updatePreferences = useCallback(async (newPrefs: Partial<NotificationPreferences>) => {
-    if (!user) return;
-
-    try {
-      const { data: companyId } = await supabase.rpc('get_user_company_id');
-
-      if (preferences) {
-        const { error } = await supabase
-          .from('notification_preferences')
-          .update(newPrefs)
-          .eq('id', preferences.id);
-
-        if (error) throw error;
-        setPreferences(prev => prev ? { ...prev, ...newPrefs } : null);
-      } else {
-        const { data, error } = await supabase
-          .from('notification_preferences')
-          .insert({
-            user_id: user.id,
-            company_id: companyId,
-            ...newPrefs
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-        setPreferences(data);
-      }
-    } catch (error) {
-      console.error('Error updating notification preferences:', error);
-    }
-  }, [user, preferences]);
+  const store = useNotificationStore();
 
   useEffect(() => {
     if (user) {
-      fetchNotifications();
-      fetchUnreadCount();
-      fetchPreferences();
-
-      // Subscribe to real-time notifications - only INSERT for new notifications
-      // We don't subscribe to UPDATE because we handle markAsRead optimistically
-      // and re-syncing on UPDATE causes the "reappearing as unread" bug
-      const channel = supabase
-        .channel('notifications-changes')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'notifications'
-          },
-          (payload) => {
-            const newNotification = payload.new as Notification;
-            // Only add if not already in state (prevent duplicates)
-            setNotifications(prev => {
-              if (prev.some(n => n.id === newNotification.id)) {
-                return prev;
-              }
-              return [newNotification, ...prev];
-            });
-            if (!newNotification.is_read) {
-              setUnreadCount(prev => prev + 1);
-            }
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      const cleanup = initializeNotificationSubscription(user.id);
+      return cleanup;
     }
-  }, [user, fetchNotifications, fetchUnreadCount, fetchPreferences]);
+  }, [user?.id]);
+
+  const updatePreferences = async (newPrefs: Partial<NotificationPreferences>) => {
+    if (!user) return;
+    await store.updatePreferences(user.id, newPrefs);
+  };
 
   return {
-    notifications,
-    unreadCount,
-    loading,
-    preferences,
-    fetchNotifications,
-    fetchUnreadCount,
-    markAsRead,
-    markAllAsRead,
+    notifications: store.notifications,
+    unreadCount: store.unreadCount,
+    loading: store.loading,
+    preferences: store.preferences,
+    fetchNotifications: store.fetchNotifications,
+    fetchUnreadCount: store.fetchUnreadCount,
+    markAsRead: store.markAsRead,
+    markAllAsRead: store.markAllAsRead,
     updatePreferences,
-    refetch: fetchNotifications
+    refetch: store.fetchNotifications
   };
 };
 
