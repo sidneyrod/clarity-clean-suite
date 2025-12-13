@@ -1060,8 +1060,11 @@ const Schedule = () => {
                         return (
                           <div 
                             key={`${day.toISOString()}-${slot.value}`} 
-                            className="p-1 border-r border-border/20 last:border-r-0 min-h-[48px] hover:bg-muted/30 transition-colors cursor-pointer"
-                            onClick={() => handleTimeSlotClick(day, slot.value)}
+                            className={cn(
+                              "p-1 border-r border-border/20 last:border-r-0 min-h-[48px] transition-colors",
+                              isAdminOrManager && "hover:bg-muted/30 cursor-pointer"
+                            )}
+                            onClick={() => isAdminOrManager && handleTimeSlotClick(day, slot.value)}
                           >
                             {dayJobs.map((job) => (
                               <div 
@@ -1114,8 +1117,11 @@ const Schedule = () => {
                     return (
                       <div 
                         key={slot.value} 
-                        className="flex gap-3 p-2 rounded-lg hover:bg-muted/30 cursor-pointer"
-                        onClick={() => handleTimeSlotClick(currentDate, slot.value)}
+                        className={cn(
+                          "flex gap-3 p-2 rounded-lg",
+                          isAdminOrManager && "hover:bg-muted/30 cursor-pointer"
+                        )}
+                        onClick={() => isAdminOrManager && handleTimeSlotClick(currentDate, slot.value)}
                       >
                         <div className="w-20 text-sm text-muted-foreground shrink-0">{slot.label}</div>
                         <div className="flex-1 space-y-1">
@@ -1351,7 +1357,7 @@ const Schedule = () => {
                   </Button>
                 )}
                 
-                {selectedJob.status === 'completed' && (
+                {selectedJob.status === 'completed' && isAdminOrManager && (
                   <>
                     <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleViewInvoice(selectedJob)}>
                       <Receipt className="h-4 w-4" />
@@ -1368,17 +1374,22 @@ const Schedule = () => {
                   </>
                 )}
                 
-                <Button variant="outline" size="icon" onClick={() => handleEditJob(selectedJob)}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  className="text-destructive hover:text-destructive"
-                  onClick={() => setJobToDelete(selectedJob)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                {/* Edit/Delete only for Admin/Manager */}
+                {isAdminOrManager && (
+                  <>
+                    <Button variant="outline" size="icon" onClick={() => handleEditJob(selectedJob)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => setJobToDelete(selectedJob)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           )}
