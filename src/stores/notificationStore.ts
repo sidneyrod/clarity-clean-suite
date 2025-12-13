@@ -289,11 +289,11 @@ export const initializeNotificationSubscription = (userId: string) => {
     realtimeChannel = null;
   }
   
-  // Fetch initial data
+  // Set userId before fetching so filters work correctly
+  store.setInitialized(true, userId);
   store.fetchNotifications();
   store.fetchUnreadCount();
   store.fetchPreferences(userId);
-  store.setInitialized(true, userId);
   
   // Create new subscription
   realtimeChannel = supabase
