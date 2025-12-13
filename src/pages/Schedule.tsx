@@ -44,7 +44,7 @@ import JobCompletionModal, { PaymentData } from '@/components/modals/JobCompleti
 import OffRequestModal, { OffRequestType } from '@/components/modals/OffRequestModal';
 import AvailabilityManager from '@/components/schedule/AvailabilityManager';
 import ConfirmDialog from '@/components/modals/ConfirmDialog';
-import { notifyJobCreated, notifyJobUpdated, notifyJobCancelled, notifyVisitCreated } from '@/hooks/useNotifications';
+import { notifyJobCreated, notifyJobUpdated, notifyJobCancelled, notifyVisitCreated, notifyJobCompleted, notifyInvoiceGenerated } from '@/hooks/useNotifications';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, startOfWeek, endOfWeek, addWeeks, subWeeks, isSameDay, addDays, subDays, parseISO } from 'date-fns';
 
 type ViewType = 'day' | 'week' | 'month' | 'timeline';
@@ -661,6 +661,15 @@ const Schedule = () => {
       if (job) {
         logActivity('job_completed', `Job completed for ${job.clientName}`, jobId, job.clientName);
         
+        // Notify admin that job was completed
+        await notifyJobCompleted(
+          job.employeeName,
+          job.clientName,
+          jobId,
+          paymentData?.paymentAmount,
+          paymentData?.paymentMethod || undefined
+        );
+        
         // Skip invoice generation for Visit type jobs
         if (job.jobType === 'visit') {
           toast.success('Visit completed successfully');
@@ -746,8 +755,25 @@ const Schedule = () => {
                     paid_at: new Date().toISOString(),
                   });
               }
+              
+              // Notify admin about invoice generation
+              await notifyInvoiceGenerated(
+                invoice.invoiceNumber,
+                job.clientName,
+                total,
+                invoice.id
+              );
+              
               toast.success(`Invoice ${invoice.invoiceNumber} generated and marked as paid`);
             } else {
+              // Notify admin about invoice generation
+              await notifyInvoiceGenerated(
+                invoice.invoiceNumber,
+                job.clientName,
+                total,
+                invoice.id
+              );
+              
               toast.success(`Invoice ${invoice.invoiceNumber} generated`);
             }
           }
