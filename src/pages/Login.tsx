@@ -84,79 +84,98 @@ const Login = () => {
   const isDark = theme === 'dark';
 
   return (
-    <div className={`fixed inset-0 flex items-center justify-center overflow-hidden ${
+    <div className={`fixed inset-0 flex overflow-hidden ${
       isDark 
         ? 'bg-gradient-to-br from-[#0a1210] via-[#0d1a15] to-[#081410]' 
-        : 'bg-gradient-to-br from-[#f0f7f4] via-[#e8f4ed] to-[#f5faf7]'
+        : 'bg-gradient-to-br from-[#f5f7f9] via-[#edf8f5] to-[#f0f7f4]'
     }`}>
       
-      {/* Arkelium Symbol Watermark - Premium SaaS aesthetic */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
-        <img 
-          src={arkeliumSymbol}
-          alt=""
-          aria-hidden="true"
-          className="w-[120vw] h-[120vh] max-w-none object-contain select-none"
-          style={{
-            opacity: isDark ? 0.04 : 0.045,
-            filter: isDark 
-              ? 'blur(1px)' 
-              : 'blur(1px) grayscale(0.3)',
-            transform: 'scale(1.2)',
-          }}
-        />
-      </div>
-      
-      {/* Green gradient overlay */}
-      <div className={`absolute inset-0 ${
-        isDark 
-          ? 'bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-900/10 via-transparent to-transparent'
-          : 'bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-200/30 via-transparent to-transparent'
-      }`} />
-      
-      <div className={`absolute inset-0 ${
-        isDark 
-          ? 'bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-emerald-950/20 via-transparent to-transparent'
-          : 'bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-emerald-100/40 via-transparent to-transparent'
-      }`} />
-
-      {/* Theme & Language Controls */}
-      <div className="absolute top-6 right-8 lg:right-16 xl:right-24 flex items-center gap-3 z-10">
-        <Select value={language} onValueChange={(val: 'en' | 'fr') => setLanguage(val)}>
-          <SelectTrigger className={`w-16 h-9 backdrop-blur-sm transition-colors text-xs ${
-            isDark 
-              ? 'bg-emerald-950/40 border-emerald-800/30 hover:bg-emerald-900/50 text-emerald-200/70'
-              : 'bg-white/60 border-emerald-200 hover:bg-white/80 text-emerald-700'
-          }`}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className={isDark ? 'bg-[#0d1a15] border-emerald-800/30' : 'bg-white border-emerald-200'}>
-            <SelectItem value="en">EN</SelectItem>
-            <SelectItem value="fr">FR</SelectItem>
-          </SelectContent>
-        </Select>
-        
-        <Button 
-          variant="outline" 
-          size="icon" 
-          onClick={toggleTheme} 
-          className={`h-9 w-9 backdrop-blur-sm transition-all ${
-            isDark 
-              ? 'bg-emerald-950/40 border-emerald-800/30 hover:bg-emerald-900/50 text-emerald-200/70'
-              : 'bg-white/60 border-emerald-200 hover:bg-white/80 text-emerald-700'
-          }`}
-        >
-          {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-        </Button>
-      </div>
-
-      {/* Login Card - Centered with generous lateral margins */}
-      <div className="w-full max-w-[420px] mx-12 lg:mx-20 xl:mx-32 z-10">
-        <div className={`rounded-2xl backdrop-blur-xl shadow-2xl p-8 lg:p-10 ${
+      {/* Left Side - Arkelium Symbol Brand Area */}
+      <div className="hidden lg:flex lg:w-1/2 xl:w-[55%] relative items-center justify-center">
+        {/* Subtle gradient overlay */}
+        <div className={`absolute inset-0 ${
           isDark 
-            ? 'bg-[#0d1a15]/90 border border-emerald-800/20 shadow-black/50' 
-            : 'bg-white/80 border border-emerald-200/50 shadow-emerald-900/10'
+            ? 'bg-gradient-to-br from-emerald-950/20 via-transparent to-emerald-900/10'
+            : 'bg-gradient-to-br from-emerald-100/40 via-transparent to-emerald-50/30'
+        }`} />
+        
+        {/* Arkelium Symbol - Large, elegant, centered */}
+        <div className="relative z-10 flex items-center justify-center w-full h-full">
+          <img 
+            src={arkeliumSymbol}
+            alt="Arkelium"
+            className="w-[65%] max-w-[500px] object-contain select-none"
+            style={{
+              opacity: isDark ? 0.08 : 0.1,
+              filter: isDark 
+                ? 'brightness(0.9)' 
+                : 'grayscale(0.2) brightness(0.95)',
+            }}
+          />
+        </div>
+        
+        {/* Bottom branding text */}
+        <div className={`absolute bottom-8 left-8 text-xs font-medium tracking-wide ${
+          isDark ? 'text-emerald-500/40' : 'text-emerald-600/50'
         }`}>
+          Powered by Arkelium
+        </div>
+      </div>
+
+      {/* Right Side - Login Form */}
+      <div className="w-full lg:w-1/2 xl:w-[45%] flex items-center justify-center relative">
+        {/* Mobile watermark - visible only on small screens */}
+        <div className="lg:hidden absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
+          <img 
+            src={arkeliumSymbol}
+            alt=""
+            aria-hidden="true"
+            className="w-[100vw] h-[100vh] max-w-none object-contain select-none"
+            style={{
+              opacity: isDark ? 0.03 : 0.04,
+              filter: 'blur(1px)',
+              transform: 'scale(1.1)',
+            }}
+          />
+        </div>
+
+        {/* Theme & Language Controls */}
+        <div className="absolute top-6 right-8 flex items-center gap-3 z-10">
+          <Select value={language} onValueChange={(val: 'en' | 'fr') => setLanguage(val)}>
+            <SelectTrigger className={`w-16 h-9 backdrop-blur-sm transition-colors text-xs ${
+              isDark 
+                ? 'bg-emerald-950/40 border-emerald-800/30 hover:bg-emerald-900/50 text-emerald-200/70'
+                : 'bg-white/60 border-emerald-200 hover:bg-white/80 text-emerald-700'
+            }`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className={isDark ? 'bg-[#0d1a15] border-emerald-800/30' : 'bg-white border-emerald-200'}>
+              <SelectItem value="en">EN</SelectItem>
+              <SelectItem value="fr">FR</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={toggleTheme} 
+            className={`h-9 w-9 backdrop-blur-sm transition-all ${
+              isDark 
+                ? 'bg-emerald-950/40 border-emerald-800/30 hover:bg-emerald-900/50 text-emerald-200/70'
+                : 'bg-white/60 border-emerald-200 hover:bg-white/80 text-emerald-700'
+            }`}
+          >
+            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
+        </div>
+
+        {/* Login Card */}
+        <div className="w-full max-w-[420px] mx-8 lg:mx-12 z-10">
+          <div className={`rounded-2xl backdrop-blur-xl shadow-2xl p-8 lg:p-10 ${
+            isDark 
+              ? 'bg-[#0d1a15]/90 border border-emerald-800/20 shadow-black/50' 
+              : 'bg-white/90 border border-emerald-200/50 shadow-emerald-900/10'
+          }`}>
           
           {/* Logo - Arkelium Symbol with immediate loading */}
           <div className="flex flex-col items-center justify-center mb-8 mt-2">
@@ -289,6 +308,7 @@ const Login = () => {
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/50" />
             Secure access for authorized users only
           </p>
+          </div>
         </div>
       </div>
     </div>
