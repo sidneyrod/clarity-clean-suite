@@ -104,12 +104,12 @@ const Login = () => {
           <img 
             src={arkeliumSymbol}
             alt="Arkelium"
-            className="w-[65%] max-w-[500px] object-contain select-none"
+            className="w-[60%] max-w-[450px] object-contain select-none"
             style={{
-              opacity: isDark ? 0.08 : 0.1,
+              opacity: isDark ? 0.06 : 0.04,
               filter: isDark 
-                ? 'brightness(0.9)' 
-                : 'grayscale(0.2) brightness(0.95)',
+                ? 'brightness(0.8)' 
+                : 'grayscale(0.5) brightness(0.92)',
             }}
           />
         </div>
