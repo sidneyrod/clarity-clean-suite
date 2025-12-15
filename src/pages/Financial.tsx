@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { toast } from '@/hooks/use-toast';
+import GenerateReportModal from '@/components/financial/GenerateReportModal';
 import { 
   BookOpen,
   TrendingUp,
@@ -30,9 +31,10 @@ import {
   Filter,
   ArrowUpRight,
   ArrowDownRight,
-  Minus
+  Minus,
+  FileBarChart
 } from 'lucide-react';
-import { format, parseISO, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isWithinInterval, subMonths } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isWithinInterval, subMonths, startOfDay, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
 
@@ -110,6 +112,7 @@ const Financial = () => {
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [showReportModal, setShowReportModal] = useState(false);
   
   // Filters
   const [eventTypeFilter, setEventTypeFilter] = useState<string>('all');
@@ -444,31 +447,37 @@ const Financial = () => {
           description="Comprehensive view of all financial transactions and events"
         />
         
-        {/* Export buttons */}
+        {/* Action buttons */}
         {isAdminOrManager && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <Download className="h-4 w-4" />
-                Export
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-popover">
-              <DropdownMenuItem onClick={exportToCSV}>
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
-                Export CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={exportToExcel}>
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
-                Export Excel
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => window.print()}>
-                <Printer className="h-4 w-4 mr-2" />
-                Print Report
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex gap-2">
+            <Button onClick={() => setShowReportModal(true)} className="gap-2">
+              <FileBarChart className="h-4 w-4" />
+              Generate Financial Report
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Download className="h-4 w-4" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-popover">
+                <DropdownMenuItem onClick={exportToCSV}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Export CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportToExcel}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Export Excel
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => window.print()}>
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print Report
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         )}
       </div>
 
@@ -711,6 +720,12 @@ const Financial = () => {
           </span>
         )}
       </div>
+
+      {/* Generate Financial Report Modal */}
+      <GenerateReportModal
+        open={showReportModal}
+        onOpenChange={setShowReportModal}
+      />
     </div>
   );
 };

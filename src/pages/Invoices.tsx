@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { toast } from '@/hooks/use-toast';
+import { CancelInvoiceModal, DeleteInvoiceModal, RegenerateInvoiceModal } from '@/components/modals/InvoiceActionModals';
 import { 
   FileText, 
   MoreHorizontal, 
@@ -26,12 +27,16 @@ import {
   QrCode,
   Printer,
   Loader2,
-  Calendar
+  Calendar,
+  XCircle,
+  Trash2,
+  RefreshCw,
+  Lock
 } from 'lucide-react';
 import { format, parseISO, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled' | 'partially_paid';
 
 interface Invoice {
   id: string;
@@ -52,6 +57,7 @@ interface Invoice {
   createdAt: string;
   dueDate: string;
   paidAt?: string;
+  jobId?: string | null;
   lineItems: { id: string; description: string; quantity: number; unitPrice: number; total: number }[];
 }
 
@@ -59,6 +65,7 @@ const statusConfig: Record<InvoiceStatus, { color: string; bgColor: string; labe
   draft: { color: 'text-muted-foreground', bgColor: 'bg-muted', label: 'Draft' },
   sent: { color: 'text-info', bgColor: 'bg-info/10', label: 'Sent' },
   paid: { color: 'text-success', bgColor: 'bg-success/10', label: 'Paid' },
+  partially_paid: { color: 'text-warning', bgColor: 'bg-warning/10', label: 'Partially Paid' },
   overdue: { color: 'text-destructive', bgColor: 'bg-destructive/10', label: 'Overdue' },
   cancelled: { color: 'text-muted-foreground', bgColor: 'bg-muted/50', label: 'Cancelled' },
 };
@@ -80,6 +87,15 @@ const Invoices = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [dateRangeLabel, setDateRangeLabel] = useState<string | null>(null);
+  
+  // Action modals
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showRegenerateModal, setShowRegenerateModal] = useState(false);
+  const [actionInvoice, setActionInvoice] = useState<Invoice | null>(null);
+  
+  const { hasRole } = useAuth();
+  const isAdmin = hasRole(['admin']);
   
   // Set date range label if URL params exist
   useEffect(() => {
@@ -111,6 +127,7 @@ const Invoices = () => {
           id,
           invoice_number,
           client_id,
+          job_id,
           status,
           subtotal,
           tax_rate,
@@ -184,6 +201,7 @@ const Invoices = () => {
           createdAt: inv.created_at,
           dueDate: inv.due_date || inv.created_at,
           paidAt: inv.paid_at,
+          jobId: inv.job_id,
           lineItems: (inv.invoice_items || []).map((item: any) => ({
             id: item.id,
             description: item.description,
@@ -360,35 +378,80 @@ const Invoices = () => {
     {
       key: 'actions',
       header: 'Actions',
-      render: (invoice) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-popover">
-            <DropdownMenuItem onClick={() => handlePreview(invoice)}>
-              <Eye className="h-4 w-4 mr-2" />
-              View
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => handleSendEmail(invoice)}>
-              <Mail className="h-4 w-4 mr-2" />
-              Send via Email
-            </DropdownMenuItem>
-            {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => handleMarkPaid(invoice)} className="text-success">
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Mark as Paid
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ),
+      render: (invoice) => {
+        const isPaid = invoice.status === 'paid' || invoice.status === 'partially_paid';
+        const isCancelled = invoice.status === 'cancelled';
+        
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-popover">
+              <DropdownMenuItem onClick={() => handlePreview(invoice)}>
+                <Eye className="h-4 w-4 mr-2" />
+                View
+              </DropdownMenuItem>
+              
+              {!isPaid && !isCancelled && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => handleSendEmail(invoice)}>
+                    <Mail className="h-4 w-4 mr-2" />
+                    Send via Email
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleMarkPaid(invoice)} className="text-success">
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Mark as Paid
+                  </DropdownMenuItem>
+                </>
+              )}
+              
+              {/* Admin-only actions */}
+              {isAdmin && (
+                <>
+                  <DropdownMenuSeparator />
+                  {isPaid ? (
+                    <DropdownMenuItem disabled className="text-muted-foreground">
+                      <Lock className="h-4 w-4 mr-2" />
+                      Invoice is locked (Paid)
+                    </DropdownMenuItem>
+                  ) : (
+                    <>
+                      {!isCancelled && (
+                        <DropdownMenuItem 
+                          onClick={() => { setActionInvoice(invoice); setShowCancelModal(true); }}
+                          className="text-warning"
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Cancel Invoice
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem 
+                        onClick={() => { setActionInvoice(invoice); setShowDeleteModal(true); }}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Permanently
+                      </DropdownMenuItem>
+                      {invoice.jobId && !isCancelled && (
+                        <DropdownMenuItem 
+                          onClick={() => { setActionInvoice(invoice); setShowRegenerateModal(true); }}
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Regenerate Invoice
+                        </DropdownMenuItem>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
     },
   ];
 
@@ -632,6 +695,49 @@ const Invoices = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Invoice Action Modals */}
+      <CancelInvoiceModal
+        open={showCancelModal}
+        onOpenChange={setShowCancelModal}
+        invoice={actionInvoice ? {
+          id: actionInvoice.id,
+          invoiceNumber: actionInvoice.invoiceNumber,
+          clientName: actionInvoice.clientName,
+          total: actionInvoice.total,
+          status: actionInvoice.status,
+          jobId: actionInvoice.jobId,
+        } : null}
+        onSuccess={fetchInvoices}
+      />
+
+      <DeleteInvoiceModal
+        open={showDeleteModal}
+        onOpenChange={setShowDeleteModal}
+        invoice={actionInvoice ? {
+          id: actionInvoice.id,
+          invoiceNumber: actionInvoice.invoiceNumber,
+          clientName: actionInvoice.clientName,
+          total: actionInvoice.total,
+          status: actionInvoice.status,
+          jobId: actionInvoice.jobId,
+        } : null}
+        onSuccess={fetchInvoices}
+      />
+
+      <RegenerateInvoiceModal
+        open={showRegenerateModal}
+        onOpenChange={setShowRegenerateModal}
+        invoice={actionInvoice ? {
+          id: actionInvoice.id,
+          invoiceNumber: actionInvoice.invoiceNumber,
+          clientName: actionInvoice.clientName,
+          total: actionInvoice.total,
+          status: actionInvoice.status,
+          jobId: actionInvoice.jobId,
+        } : null}
+        onSuccess={fetchInvoices}
+      />
     </div>
   );
 };
