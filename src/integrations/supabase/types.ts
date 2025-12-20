@@ -591,6 +591,7 @@ export type Database = {
       company_estimate_config: {
         Row: {
           admin_is_cleaner: boolean | null
+          auto_send_cash_receipt: boolean | null
           company_id: string
           created_at: string
           default_hourly_rate: number | null
@@ -601,6 +602,7 @@ export type Database = {
         }
         Insert: {
           admin_is_cleaner?: boolean | null
+          auto_send_cash_receipt?: boolean | null
           company_id: string
           created_at?: string
           default_hourly_rate?: number | null
@@ -611,6 +613,7 @@ export type Database = {
         }
         Update: {
           admin_is_cleaner?: boolean | null
+          auto_send_cash_receipt?: boolean | null
           company_id?: string
           created_at?: string
           default_hourly_rate?: number | null
@@ -1042,6 +1045,7 @@ export type Database = {
           duration_minutes: number | null
           end_time: string | null
           id: string
+          is_billable: boolean | null
           job_type: string | null
           location_id: string | null
           notes: string | null
@@ -1068,6 +1072,7 @@ export type Database = {
           duration_minutes?: number | null
           end_time?: string | null
           id?: string
+          is_billable?: boolean | null
           job_type?: string | null
           location_id?: string | null
           notes?: string | null
@@ -1094,6 +1099,7 @@ export type Database = {
           duration_minutes?: number | null
           end_time?: string | null
           id?: string
+          is_billable?: boolean | null
           job_type?: string | null
           location_id?: string | null
           notes?: string | null
@@ -1263,6 +1269,108 @@ export type Database = {
             columns: ["recipient_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_receipts: {
+        Row: {
+          amount: number
+          cleaner_id: string | null
+          client_id: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          job_id: string
+          notes: string | null
+          payment_method: string
+          receipt_html: string | null
+          receipt_number: string
+          sent_at: string | null
+          sent_to_email: string | null
+          service_date: string
+          service_description: string | null
+          tax_amount: number | null
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          cleaner_id?: string | null
+          client_id: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          job_id: string
+          notes?: string | null
+          payment_method: string
+          receipt_html?: string | null
+          receipt_number: string
+          sent_at?: string | null
+          sent_to_email?: string | null
+          service_date: string
+          service_description?: string | null
+          tax_amount?: number | null
+          total: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          cleaner_id?: string | null
+          client_id?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          job_id?: string
+          notes?: string | null
+          payment_method?: string
+          receipt_html?: string | null
+          receipt_number?: string
+          sent_at?: string | null
+          sent_to_email?: string | null
+          service_date?: string
+          service_description?: string | null
+          tax_amount?: number | null
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_receipts_cleaner_id_fkey"
+            columns: ["cleaner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_receipts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_receipts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_receipts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_receipts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]

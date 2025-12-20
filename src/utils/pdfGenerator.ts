@@ -63,6 +63,22 @@ export interface PayrollReportData {
   };
 }
 
+export interface PaymentReceiptData {
+  receiptNumber: string;
+  clientName: string;
+  clientAddress?: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  cleanerName: string;
+  serviceDate: string;
+  serviceDescription: string;
+  paymentMethod: string;
+  amount: number;
+  taxAmount: number;
+  total: number;
+  notes?: string;
+}
+
 /**
  * Generate common PDF styles with company branding
  * Uses COMPANY branding (not platform branding)
@@ -614,6 +630,173 @@ export const generatePayrollReportPdf = (
       </tr>
     </tbody>
   </table>
+</body>
+</html>
+  `;
+
+  return html;
+};
+
+/**
+ * Generate a payment receipt PDF
+ * Uses CLIENT COMPANY branding - NEVER ARKELIUM
+ */
+export const generatePaymentReceiptPdf = (
+  data: PaymentReceiptData,
+  company: CompanyProfile,
+  branding: CompanyBranding
+): string => {
+  const paymentMethodLabels: Record<string, string> = {
+    cash: 'Cash',
+    e_transfer: 'E-Transfer',
+    credit_card: 'Credit Card',
+    cheque: 'Cheque',
+    bank_transfer: 'Bank Transfer',
+  };
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    ${getCommonStyles(branding)}
+    .receipt-box {
+      border: 2px solid ${branding.primaryColor || '#1a3d2e'};
+      border-radius: 12px;
+      padding: 30px;
+      margin: 20px 0;
+    }
+    .receipt-header {
+      text-align: center;
+      border-bottom: 2px solid ${branding.primaryColor || '#1a3d2e'}20;
+      padding-bottom: 20px;
+      margin-bottom: 20px;
+    }
+    .receipt-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: ${branding.primaryColor || '#1a3d2e'};
+      margin: 0;
+    }
+    .receipt-number {
+      font-size: 14px;
+      color: #666;
+      margin-top: 5px;
+    }
+    .receipt-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .receipt-row:last-child {
+      border-bottom: none;
+    }
+    .receipt-label {
+      color: #666;
+      font-weight: 500;
+    }
+    .receipt-value {
+      font-weight: 600;
+      text-align: right;
+    }
+    .receipt-total {
+      background: linear-gradient(135deg, ${branding.primaryColor || '#1a3d2e'}15, ${branding.primaryColor || '#1a3d2e'}08);
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+      text-align: center;
+    }
+    .receipt-total-label {
+      font-size: 12px;
+      color: #666;
+      text-transform: uppercase;
+    }
+    .receipt-total-value {
+      font-size: 36px;
+      font-weight: 700;
+      color: ${branding.primaryColor || '#1a3d2e'};
+    }
+    .payment-badge {
+      display: inline-block;
+      background: #4ade8030;
+      color: ${branding.primaryColor || '#1a3d2e'};
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .thank-you {
+      text-align: center;
+      margin-top: 30px;
+      font-size: 18px;
+      color: ${branding.primaryColor || '#1a3d2e'};
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  ${getWatermarkHtml(company, branding)}
+  ${getHeaderHtml(company, branding)}
+  
+  <div class="receipt-box">
+    <div class="receipt-header">
+      <h1 class="receipt-title">PAYMENT RECEIPT</h1>
+      <p class="receipt-number">#${data.receiptNumber}</p>
+    </div>
+    
+    <div class="receipt-row">
+      <span class="receipt-label">Client</span>
+      <span class="receipt-value">${data.clientName}</span>
+    </div>
+    ${data.clientAddress ? `
+    <div class="receipt-row">
+      <span class="receipt-label">Address</span>
+      <span class="receipt-value">${data.clientAddress}</span>
+    </div>
+    ` : ''}
+    <div class="receipt-row">
+      <span class="receipt-label">Service Date</span>
+      <span class="receipt-value">${data.serviceDate}</span>
+    </div>
+    <div class="receipt-row">
+      <span class="receipt-label">Service</span>
+      <span class="receipt-value">${data.serviceDescription}</span>
+    </div>
+    <div class="receipt-row">
+      <span class="receipt-label">Cleaned By</span>
+      <span class="receipt-value">${data.cleanerName}</span>
+    </div>
+    <div class="receipt-row">
+      <span class="receipt-label">Payment Method</span>
+      <span class="receipt-value"><span class="payment-badge">${paymentMethodLabels[data.paymentMethod] || data.paymentMethod}</span></span>
+    </div>
+    
+    <div class="receipt-row">
+      <span class="receipt-label">Subtotal</span>
+      <span class="receipt-value">$${data.amount.toFixed(2)}</span>
+    </div>
+    ${data.taxAmount > 0 ? `
+    <div class="receipt-row">
+      <span class="receipt-label">Tax (HST)</span>
+      <span class="receipt-value">$${data.taxAmount.toFixed(2)}</span>
+    </div>
+    ` : ''}
+    
+    <div class="receipt-total">
+      <div class="receipt-total-label">Total Paid</div>
+      <div class="receipt-total-value">$${data.total.toFixed(2)}</div>
+    </div>
+    
+    ${data.notes ? `<p style="margin-top: 20px; color: #666; font-size: 12px;"><strong>Notes:</strong> ${data.notes}</p>` : ''}
+  </div>
+  
+  <p class="thank-you">Thank you for your business!</p>
+  
+  <div class="footer">
+    Receipt #${data.receiptNumber} | Generated on ${new Date().toLocaleDateString()}
+  </div>
 </body>
 </html>
   `;

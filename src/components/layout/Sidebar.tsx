@@ -134,6 +134,7 @@ const Sidebar = () => {
   
   if (isAdminOrManager) {
     financialItems.push({ path: '/invoices', label: 'Invoices', icon: Receipt });
+    financialItems.push({ path: '/receipts', label: 'Receipts', icon: Receipt });
   }
   
   if (isAdmin) {
