@@ -32,6 +32,7 @@ import Absences from "./pages/Absences";
 import Availability from "./pages/Availability";
 import Notifications from "./pages/Notifications";
 import Financial from "./pages/Financial";
+import Receipts from "./pages/Receipts";
 
 const queryClient = new QueryClient();
 
@@ -198,6 +199,7 @@ const AppRoutes = () => {
         <Route path="/calculator" element={<AdminManagerRoute><Calculator /></AdminManagerRoute>} />
         <Route path="/payroll" element={<AdminRoute><Payroll /></AdminRoute>} />
         <Route path="/financial" element={<AdminManagerRoute><Financial /></AdminManagerRoute>} />
+        <Route path="/receipts" element={<AdminManagerRoute><Receipts /></AdminManagerRoute>} />
         
         {/* Notifications - accessible to all authenticated users */}
         <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
