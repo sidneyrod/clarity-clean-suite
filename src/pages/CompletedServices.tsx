@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -12,8 +12,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { PeriodSelector, DateRange } from '@/components/ui/period-selector';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, parseISO, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns';
 import { 
   CheckCircle, 
   FileText, 
@@ -45,6 +46,10 @@ const CompletedServices = () => {
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [invoiceFrequency, setInvoiceFrequency] = useState<'weekly' | 'biweekly' | 'monthly'>('weekly');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [period, setPeriod] = useState<DateRange>({
+    startDate: startOfMonth(new Date()),
+    endDate: endOfMonth(new Date()),
+  });
 
   const isAdmin = hasRole(['admin']);
   const isManager = hasRole(['manager']);
@@ -94,12 +99,31 @@ const CompletedServices = () => {
     }
   }, [user, fetchCompletedServices]);
 
-  // RPC already returns only services without invoices, just filter by search
-  const filteredServices = services.filter(service => 
-    service.clientName.toLowerCase().includes(search.toLowerCase()) ||
-    service.employeeName.toLowerCase().includes(search.toLowerCase()) ||
-    service.address.toLowerCase().includes(search.toLowerCase())
-  );
+  // Filter by search and period
+  const filteredServices = useMemo(() => {
+    return services.filter(service => {
+      // Search filter
+      const matchesSearch = service.clientName.toLowerCase().includes(search.toLowerCase()) ||
+        service.employeeName.toLowerCase().includes(search.toLowerCase()) ||
+        service.address.toLowerCase().includes(search.toLowerCase());
+      
+      if (!matchesSearch) return false;
+      
+      // Period filter
+      if (period.startDate && period.endDate && service.date) {
+        try {
+          const serviceDate = parseISO(service.date);
+          if (!isWithinInterval(serviceDate, { start: period.startDate, end: period.endDate })) {
+            return false;
+          }
+        } catch {
+          // Invalid date
+        }
+      }
+      
+      return true;
+    });
+  }, [services, search, period]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -322,10 +346,13 @@ const CompletedServices = () => {
 
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-6">
-      <PageHeader 
-        title="Completed Services"
-        description="Select completed services to generate invoices"
-      />
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <PageHeader 
+          title="Completed Services"
+          description="Select completed services to generate invoices"
+        />
+        <PeriodSelector value={period} onChange={setPeriod} />
+      </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="border-border/50">

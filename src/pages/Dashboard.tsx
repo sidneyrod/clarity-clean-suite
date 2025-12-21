@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import StatCard from '@/components/ui/stat-card';
 import AlertCard from '@/components/ui/alert-card';
 import useRoleAccess from '@/hooks/useRoleAccess';
+import { PeriodSelector, DateRange } from '@/components/ui/period-selector';
 import { 
   Briefcase, 
   Users, 
@@ -30,7 +31,7 @@ import {
   BarChart,
   Bar,
 } from 'recharts';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, parseISO, isWithinInterval } from 'date-fns';
 import { toSafeLocalDate } from '@/lib/dates';
 
 
@@ -70,6 +71,10 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { isCleaner, isAdminOrManager } = useRoleAccess();
   
+  const [period, setPeriod] = useState<DateRange>({
+    startDate: startOfMonth(new Date()),
+    endDate: endOfMonth(new Date()),
+  });
   
   const [stats, setStats] = useState<DashboardStats>({
     todayJobs: 0,
@@ -338,9 +343,14 @@ const Dashboard = () => {
   return (
     <div className="container px-6 lg:px-10 py-8 space-y-8">
       {/* Welcome Section */}
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight heading-primary">{t.dashboard.welcome}, {userName}</h1>
-        <p className="label-secondary">{t.dashboard.subtitle}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight heading-primary">{t.dashboard.welcome}, {userName}</h1>
+          <p className="label-secondary">{t.dashboard.subtitle}</p>
+        </div>
+        {isAdminOrManager && (
+          <PeriodSelector value={period} onChange={setPeriod} />
+        )}
       </div>
 
       {/* Stats Grid - Premium Cards with Color Variants */}

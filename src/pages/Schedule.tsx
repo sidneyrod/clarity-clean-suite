@@ -47,6 +47,7 @@ import ConfirmDialog from '@/components/modals/ConfirmDialog';
 import { notifyJobCreated, notifyJobUpdated, notifyJobCancelled, notifyVisitCreated, notifyJobCompleted, notifyInvoiceGenerated } from '@/hooks/useNotifications';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, startOfWeek, endOfWeek, addWeeks, subWeeks, isSameDay, addDays, subDays, parseISO } from 'date-fns';
 import { toSafeLocalDate } from '@/lib/dates';
+import { generatePaymentReceiptPdf, openPdfPreview } from '@/utils/pdfGenerator';
 
 type ViewType = 'day' | 'week' | 'month' | 'timeline';
 type JobStatus = 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
@@ -287,6 +288,8 @@ const Schedule = () => {
     }
   }, [user]);
 
+  const [autoSendCashReceipt, setAutoSendCashReceipt] = useState(false);
+  
   // Fetch invoice generation mode setting
   const fetchInvoiceSettings = useCallback(async () => {
     try {
@@ -300,12 +303,15 @@ const Schedule = () => {
       
       const { data } = await supabase
         .from('company_estimate_config')
-        .select('invoice_generation_mode')
+        .select('invoice_generation_mode, auto_send_cash_receipt')
         .eq('company_id', companyId)
         .maybeSingle();
       
       if (data?.invoice_generation_mode) {
         setInvoiceGenerationMode(data.invoice_generation_mode as 'automatic' | 'manual');
+      }
+      if (data?.auto_send_cash_receipt !== undefined) {
+        setAutoSendCashReceipt(data.auto_send_cash_receipt);
       }
     } catch (error) {
       console.error('Error fetching invoice settings:', error);
@@ -696,6 +702,119 @@ const Schedule = () => {
     }
   };
 
+  // Create cash payment receipt
+  const createCashReceipt = async (
+    job: ScheduledJob,
+    paymentData: PaymentData,
+    companyId: string
+  ) => {
+    try {
+      // Fetch client data
+      const { data: clientData } = await supabase
+        .from('clients')
+        .select('id, name, email, address, city, postal_code, phone')
+        .eq('id', job.clientId)
+        .single();
+      
+      // Fetch company and branding
+      const { data: companyData } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('id', companyId)
+        .single();
+      
+      const { data: brandingData } = await supabase
+        .from('company_branding')
+        .select('*')
+        .eq('company_id', companyId)
+        .maybeSingle();
+      
+      // Fetch config for tax rate
+      const { data: configData } = await supabase
+        .from('company_estimate_config')
+        .select('tax_rate')
+        .eq('company_id', companyId)
+        .maybeSingle();
+      
+      const taxRate = configData?.tax_rate || 13;
+      const subtotal = paymentData.paymentAmount;
+      const taxAmount = subtotal * (taxRate / 100);
+      const total = subtotal + taxAmount;
+      
+      // Generate receipt number
+      const receiptNumber = `REC-${format(new Date(), 'yyyyMMdd')}-${Date.now().toString().slice(-6)}`;
+      
+      // Generate receipt HTML
+      const receiptData = {
+        receiptNumber,
+        clientName: clientData?.name || job.clientName,
+        clientEmail: clientData?.email || '',
+        clientPhone: clientData?.phone || '',
+        clientAddress: clientData?.address || job.address,
+        cleanerName: job.employeeName,
+        serviceDate: job.date,
+        serviceDescription: `Cleaning service - ${job.duration}`,
+        paymentMethod: 'cash',
+        amount: subtotal,
+        taxAmount,
+        total,
+        notes: paymentData.paymentNotes,
+      };
+      
+      const company = {
+        companyName: companyData?.trade_name || '',
+        legalName: companyData?.legal_name || '',
+        address: companyData?.address || '',
+        city: companyData?.city || '',
+        province: companyData?.province || '',
+        postalCode: companyData?.postal_code || '',
+        phone: companyData?.phone || '',
+        email: companyData?.email || '',
+        website: companyData?.website || '',
+        businessNumber: '',
+        gstHstNumber: '',
+      };
+      
+      const branding = {
+        logoUrl: brandingData?.logo_url || null,
+        primaryColor: brandingData?.primary_color || '#1a3d2e',
+      };
+      
+      const receiptHtml = generatePaymentReceiptPdf(receiptData, company, branding);
+      
+      // Insert payment receipt
+      const { error: receiptError } = await supabase
+        .from('payment_receipts')
+        .insert({
+          company_id: companyId,
+          job_id: job.id,
+          client_id: job.clientId,
+          cleaner_id: job.employeeId || null,
+          receipt_number: receiptNumber,
+          payment_method: 'cash',
+          amount: subtotal,
+          tax_amount: taxAmount,
+          total,
+          service_date: job.date,
+          service_description: `Cleaning service - ${job.duration}`,
+          receipt_html: receiptHtml,
+          created_by: user?.id || null,
+          notes: paymentData.paymentNotes || null,
+        });
+      
+      if (receiptError) {
+        console.error('Error creating receipt:', receiptError);
+        return null;
+      }
+      
+      console.log(`Cash receipt ${receiptNumber} created successfully`);
+      return { receiptNumber, receiptHtml };
+    } catch (error) {
+      console.error('Error in createCashReceipt:', error);
+      return null;
+    }
+  };
+  
   const handleCompleteJob = async (jobId: string, afterPhoto?: string, notes?: string, paymentData?: PaymentData) => {
     // Close modal first to prevent reopening
     setShowCompletion(false);
@@ -753,6 +872,24 @@ const Schedule = () => {
           paymentData?.paymentMethod || undefined
         );
         
+        // Handle cash payments - create receipt
+        if (paymentData?.paymentMethod === 'cash') {
+          const receipt = await createCashReceipt(job, paymentData, companyId);
+          if (receipt) {
+            toast.success(`Recibo ${receipt.receiptNumber} gerado com sucesso`);
+            
+            // Create cleaner payment entry for cash
+            if (job.employeeId) {
+              const durationHours = parseFloat(job.duration.replace(/[^0-9.]/g, '')) || 2;
+              await createCleanerPayment(job, paymentData.paymentAmount, durationHours, paymentData);
+            }
+          }
+          
+          // Skip invoice generation for cash payments
+          await fetchJobs();
+          return;
+        }
+        
         // Skip invoice generation for Visit type jobs
         if (job.jobType === 'visit') {
           toast.success('Visit completed successfully');
@@ -760,7 +897,7 @@ const Schedule = () => {
           return;
         }
         
-        // Only auto-generate invoice if mode is 'automatic'
+        // Only auto-generate invoice if mode is 'automatic' and NOT cash
         if (invoiceGenerationMode === 'automatic') {
           // Check if invoice already exists in Supabase
           const { data: existingInvoice } = await supabase

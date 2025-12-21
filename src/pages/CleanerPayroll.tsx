@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PeriodSelector, DateRange } from '@/components/ui/period-selector';
 import { 
   Clock, 
   DollarSign, 
@@ -21,7 +22,7 @@ import {
   Timer,
   Building2
 } from 'lucide-react';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, parseISO, differenceInMinutes } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, parseISO, differenceInMinutes, isWithinInterval } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface JobDetail {
@@ -73,6 +74,11 @@ const CleanerPayroll = () => {
   const { user } = useAuth();
   
   const [isLoading, setIsLoading] = useState(true);
+  const [allJobs, setAllJobs] = useState<JobDetail[]>([]);
+  const [period, setPeriod] = useState<DateRange>({
+    startDate: startOfMonth(new Date()),
+    endDate: endOfMonth(new Date()),
+  });
   const [jobs, setJobs] = useState<JobDetail[]>([]);
   const [payrollEntries, setPayrollEntries] = useState<PayrollEntry[]>([]);
   const [summary, setSummary] = useState<PayrollSummary>({
@@ -249,10 +255,13 @@ const CleanerPayroll = () => {
 
   return (
     <div className="container px-4 py-6 lg:px-8 space-y-6">
-      <PageHeader 
-        title={t.payroll.myPayroll}
-        description={t.payroll.myPayrollDescription}
-      />
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <PageHeader 
+          title={t.payroll.myPayroll}
+          description={t.payroll.myPayrollDescription}
+        />
+        <PeriodSelector value={period} onChange={setPeriod} />
+      </div>
 
       {/* Hours Summary Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
