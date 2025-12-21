@@ -13,7 +13,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { toast } from '@/hooks/use-toast';
 import GenerateReportModal from '@/components/financial/GenerateReportModal';
-import { 
+import { PeriodSelector, DateRange as PeriodDateRange } from '@/components/ui/period-selector';
+import {
   BookOpen,
   TrendingUp,
   DollarSign,
@@ -120,9 +121,9 @@ const Financial = () => {
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('all');
   const [clientFilter, setClientFilter] = useState<string>('all');
   const [cleanerFilter, setCleanerFilter] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: startOfMonth(new Date()),
-    to: endOfMonth(new Date()),
+  const [globalPeriod, setGlobalPeriod] = useState<PeriodDateRange>({
+    startDate: startOfMonth(new Date()),
+    endDate: endOfMonth(new Date()),
   });
   const [periodFilter, setPeriodFilter] = useState<string>('thisMonth');
   
@@ -204,30 +205,7 @@ const Financial = () => {
     fetchLedgerEntries();
   }, [fetchLedgerEntries]);
 
-  // Handle period filter change
-  const handlePeriodChange = (value: string) => {
-    setPeriodFilter(value);
-    const now = new Date();
-    
-    switch (value) {
-      case 'today':
-        setDateRange({ from: now, to: now });
-        break;
-      case 'thisWeek':
-        setDateRange({ from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfWeek(now, { weekStartsOn: 1 }) });
-        break;
-      case 'thisMonth':
-        setDateRange({ from: startOfMonth(now), to: endOfMonth(now) });
-        break;
-      case 'lastMonth':
-        const lastMonth = subMonths(now, 1);
-        setDateRange({ from: startOfMonth(lastMonth), to: endOfMonth(lastMonth) });
-        break;
-      case 'custom':
-        // Keep current range for custom
-        break;
-    }
-  };
+  // Period filter is now handled by PeriodSelector component
 
   // Filtered entries
   const filteredEntries = useMemo(() => {
@@ -257,11 +235,11 @@ const Financial = () => {
       // Cleaner filter
       if (cleanerFilter !== 'all' && entry.cleanerId !== cleanerFilter) return false;
       
-      // Date range filter
-      if (dateRange?.from && dateRange?.to && entry.transactionDate) {
+      // Date range filter - use globalPeriod
+      if (globalPeriod.startDate && globalPeriod.endDate && entry.transactionDate) {
         try {
           const entryDate = parseISO(entry.transactionDate);
-          if (!isWithinInterval(entryDate, { start: dateRange.from, end: dateRange.to })) {
+          if (!isWithinInterval(entryDate, { start: globalPeriod.startDate, end: globalPeriod.endDate })) {
             return false;
           }
         } catch {
@@ -271,7 +249,7 @@ const Financial = () => {
       
       return true;
     });
-  }, [entries, search, eventTypeFilter, statusFilter, paymentMethodFilter, clientFilter, cleanerFilter, dateRange]);
+  }, [entries, search, eventTypeFilter, statusFilter, paymentMethodFilter, clientFilter, cleanerFilter, globalPeriod]);
 
   // Calculate summary
   const summary = useMemo((): FinancialSummary => {
@@ -447,38 +425,40 @@ const Financial = () => {
           description="Comprehensive view of all financial transactions and events"
         />
         
-        {/* Action buttons */}
-        {isAdminOrManager && (
-          <div className="flex gap-2">
-            <Button onClick={() => setShowReportModal(true)} className="gap-2">
-              <FileBarChart className="h-4 w-4" />
-              Generate Financial Report
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  <Download className="h-4 w-4" />
-                  Export
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-popover">
-                <DropdownMenuItem onClick={exportToCSV}>
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
-                  Export CSV
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={exportToExcel}>
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
-                  Export Excel
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => window.print()}>
-                  <Printer className="h-4 w-4 mr-2" />
-                  Print Report
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <PeriodSelector value={globalPeriod} onChange={setGlobalPeriod} />
+          {isAdminOrManager && (
+            <>
+              <Button onClick={() => setShowReportModal(true)} className="gap-2">
+                <FileBarChart className="h-4 w-4" />
+                Generate Financial Report
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <Download className="h-4 w-4" />
+                    Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-popover">
+                  <DropdownMenuItem onClick={exportToCSV}>
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    Export CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportToExcel}>
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    Export Excel
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => window.print()}>
+                    <Printer className="h-4 w-4 mr-2" />
+                    Print Report
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -594,26 +574,7 @@ const Financial = () => {
             </SelectContent>
           </Select>
           
-          {periodFilter === 'custom' && (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  <CalendarIcon className="h-4 w-4" />
-                  {dateRange?.from && dateRange?.to 
-                    ? `${format(dateRange.from, 'MMM d')} - ${format(dateRange.to, 'MMM d')}`
-                    : 'Select dates'}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="range"
-                  selected={dateRange}
-                  onSelect={setDateRange}
-                  numberOfMonths={2}
-                />
-              </PopoverContent>
-            </Popover>
-          )}
+          {/* Period filter is handled by PeriodSelector in header */}
           
           <Select value={eventTypeFilter} onValueChange={setEventTypeFilter}>
             <SelectTrigger className="w-[140px]">
@@ -714,9 +675,9 @@ const Financial = () => {
         <span>
           Currency: CAD (Canadian Dollar)
         </span>
-        {dateRange?.from && dateRange?.to && (
+        {globalPeriod.startDate && globalPeriod.endDate && (
           <span>
-            Period: {format(dateRange.from, 'MMM d, yyyy')} — {format(dateRange.to, 'MMM d, yyyy')}
+            Period: {format(globalPeriod.startDate, 'MMM d, yyyy')} — {format(globalPeriod.endDate, 'MMM d, yyyy')}
           </span>
         )}
       </div>
