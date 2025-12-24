@@ -1,118 +1,128 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Moon, Sun, Eye, EyeOff } from 'lucide-react';
+
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from '@/hooks/use-toast';
-import { Sun, Moon, Eye, EyeOff } from 'lucide-react';
-import { z } from 'zod';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
 import arkeliumLogo from '@/assets/arkelium-logo.png';
 import arkeliumSymbol from '@/assets/arkelium-symbol.png';
 
-// Validation schemas
-const emailSchema = z.string().email('Please enter a valid email address');
-const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
-const Login = () => {
-  const {
-    t,
-    language,
-    setLanguage
-  } = useLanguage();
-  const {
-    theme,
-    toggleTheme
-  } = useTheme();
-  const {
-    login,
-    isAuthenticated
-  } = useAuth();
+type Lang = 'en' | 'fr';
+
+export default function Login() {
   const navigate = useNavigate();
+  const auth = useAuth();
+  const { theme, toggleTheme } = useTheme(); // ✅ CORRIGIDO: theme ao invés de isDark
+  const { language, setLanguage } = useLanguage();
+
+  // ✅ Derivar isDark de theme
+  const isDark = theme === 'dark';
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
 
-  // Redirect if already authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/');
-    }
-  }, [isAuthenticated, navigate]);
-  const validateForm = (): string | null => {
-    try {
-      emailSchema.parse(email);
-    } catch (e: any) {
-      return e.errors?.[0]?.message || 'Invalid email';
-    }
-    try {
-      passwordSchema.parse(password);
-    } catch (e: any) {
-      return e.errors?.[0]?.message || 'Invalid password';
-    }
-    return null;
-  };
-  const handleSignIn = async (e: React.FormEvent) => {
+  const [rememberMe, setRememberMe] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const t = useMemo(() => {
+    const dict = {
+      en: {
+        email: 'Email',
+        password: 'Password',
+        remember: 'Remember me',
+        forgot: 'Forgot password?',
+        secure: 'Secure access for authorized users only',
+        loading: 'Signing in...',
+        button: 'Sign In',
+        invalid: 'Please enter a valid email and password.',
+        failed: 'Unable to sign in. Please check your credentials.',
+      },
+      fr: {
+        email: 'E-mail',
+        password: 'Mot de passe',
+        remember: 'Se souvenir de moi',
+        forgot: 'Mot de passe oublié ?',
+        secure: 'Accès sécurisé réservé aux utilisateurs autorisés',
+        loading: 'Connexion...',
+        button: 'Se connecter',
+        invalid: 'Veuillez saisir un e-mail et un mot de passe valides.',
+        failed: 'Impossible de se connecter. Vérifiez vos identifiants.',
+      },
+    } satisfies Record<Lang, any>;
+
+    return dict[(language as Lang) || 'en'];
+  }, [language]);
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError('');
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
+    setErrorMsg(null);
+
+    const emailTrim = email.trim();
+    if (!emailTrim || !password.trim()) {
+      setErrorMsg(t.invalid);
       return;
     }
-    setIsLoading(true);
-    const result = await login(email, password, rememberMe);
-    if (result.success) {
-      toast({
-        title: t.common.success,
-        description: t.auth.loginSuccess
-      });
-      navigate('/');
-    } else {
-      setError(result.error || t.auth.invalidCredentials);
+
+    setIsSubmitting(true);
+    try {
+      localStorage.setItem('arkelium_remember_me', String(rememberMe));
+
+      // ✅ Use the method that exists in your AuthContext
+      // Expected: auth.login(email, password)
+      // If your AuthContext returns { login }, this works:
+      if (typeof (auth as any).login !== 'function') {
+        throw new Error('AuthContext: login() not found. Use the correct method name from AuthContext.');
+      }
+
+      await (auth as any).login(emailTrim, password);
+
+      navigate('/', { replace: true });
+    } catch (err) {
+      console.error('[Login] login error:', err);
+      setErrorMsg(t.failed);
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsLoading(false);
-  };
-  const isDark = theme === 'dark';
-  return <div className={`fixed inset-0 flex overflow-hidden ${isDark ? 'bg-gradient-to-br from-[#0a1210] via-[#0d1a15] to-[#081410]' : 'bg-[#EDF3F0]'}`}>
-      
-      {/* Left Side - Arkelium Symbol Brand Area */}
-      <div className="hidden lg:flex lg:w-[52%] xl:w-[55%] relative items-center justify-center">
-        {/* Subtle gradient overlay */}
-        <div className={`absolute inset-0 ${isDark ? 'bg-gradient-to-br from-emerald-950/20 via-transparent to-emerald-900/10' : 'bg-gradient-to-br from-[#DCE8E2]/70 via-[#E5F0EA]/50 to-[#EDF5F1]/60'}`} />
-        
-        {/* Arkelium Symbol - Large, elegant, centered with enhanced light theme presence */}
-        <div className="relative z-10 flex items-center justify-center w-full h-full">
-          
-        </div>
-        
-        {/* Bottom branding text */}
-        <div className={`absolute bottom-8 left-8 text-xs font-medium tracking-wide ${isDark ? 'text-emerald-500/40' : 'text-emerald-700/60'}`}>
-          Powered by Arkelium
-        </div>
-      </div>
+  }
 
-      {/* Right Side - Login Form */}
-      <div className="w-full lg:w-[48%] xl:w-[45%] flex items-center justify-center lg:justify-center relative">
-        {/* Mobile watermark - visible only on small screens */}
-        <div className="lg:hidden absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
-          <img src={arkeliumSymbol} alt="" aria-hidden="true" className="w-[100vw] h-[100vh] max-w-none object-contain select-none" style={{
-          opacity: isDark ? 0.03 : 0.045,
-          filter: isDark ? 'blur(1px)' : 'none',
-          transform: 'scale(1.1)'
-        }} />
-        </div>
+  return (
+    <div
+      className={`fixed inset-0 overflow-hidden ${
+        isDark
+          ? 'bg-gradient-to-br from-[#0a1210] via-[#0d1a15] to-[#081410]'
+          : 'bg-[#EDF3F0]'
+      }`}
+    >
 
-        {/* Theme & Language Controls - Fixed at top right of viewport */}
-        <div className="fixed top-6 right-6 flex items-center gap-3 z-20">
-          <Select value={language} onValueChange={(val: 'en' | 'fr') => setLanguage(val)}>
-            <SelectTrigger className={`w-16 h-9 backdrop-blur-sm transition-colors text-xs ${isDark ? 'bg-emerald-950/40 border-emerald-800/30 hover:bg-emerald-900/50 text-emerald-200/70' : 'bg-white/60 border-emerald-200 hover:bg-white/80 text-emerald-700'}`}>
+
+      {/* Top right controls */}
+      <div className="fixed top-6 right-6 z-20">
+        <div className="flex items-center gap-3">
+          <Select value={(language as Lang) || 'en'} onValueChange={(val: Lang) => setLanguage(val)}>
+            <SelectTrigger
+              className={`w-16 h-9 backdrop-blur-sm transition-colors text-xs ${
+                isDark
+                  ? 'bg-emerald-950/40 border-emerald-800/30 hover:bg-emerald-900/50 text-emerald-200/70'
+                  : 'bg-white/60 border-emerald-200 hover:bg-white/80 text-emerald-700'
+              }`}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent className={isDark ? 'bg-[#0d1a15] border-emerald-800/30' : 'bg-white border-emerald-200'}>
@@ -120,78 +130,132 @@ const Login = () => {
               <SelectItem value="fr">FR</SelectItem>
             </SelectContent>
           </Select>
-          
-          <Button variant="outline" size="icon" onClick={toggleTheme} className={`h-9 w-9 backdrop-blur-sm transition-all ${isDark ? 'bg-emerald-950/40 border-emerald-800/30 hover:bg-emerald-900/50 text-emerald-200/70' : 'bg-white/60 border-emerald-200 hover:bg-white/80 text-emerald-700'}`}>
+
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={toggleTheme}
+            className={`h-9 w-9 backdrop-blur-sm transition-colors ${
+              isDark
+                ? 'bg-emerald-950/40 border-emerald-800/30 hover:bg-emerald-900/50 text-emerald-200/70'
+                : 'bg-white/60 border-emerald-200 hover:bg-white/80 text-emerald-700'
+            }`}
+          >
             {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
         </div>
+      </div>
 
-        {/* Login Card */}
-        <div className="w-full max-w-[460px] mx-6 lg:mx-0 lg:mr-[12%] z-10">
-          <div className={`rounded-2xl backdrop-blur-xl p-8 lg:p-10 ${isDark ? 'bg-[#0d1a15]/90 border border-emerald-800/20 shadow-2xl shadow-black/50' : 'bg-white/95 border border-emerald-200/60 shadow-[0_12px_48px_-12px_rgba(0,80,60,0.18)]'}`}>
-          
-          {/* Logo - Arkelium Symbol with immediate loading */}
-          <div className="flex flex-col items-center justify-center mb-8 mt-2">
-            <img src={arkeliumLogo} alt="Arkelium" className="w-28 h-28 object-contain" loading="eager" fetchPriority="high" />
-          </div>
+      {/* Bottom left */}
+      <div
+        className={`fixed bottom-8 left-8 text-xs font-medium tracking-wide ${
+          isDark ? 'text-emerald-500/40' : 'text-emerald-700/60'
+        }`}
+      >
+        Powered by Arkelium
+      </div>
 
-          {/* Sign In Form */}
-          <form onSubmit={handleSignIn} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="email" className={`text-xs font-medium ${isDark ? 'text-white' : 'text-black'}`}>
-                {t.auth.email}
-              </Label>
-              <Input id="email" type="email" placeholder="name@company.com" value={email} onChange={e => setEmail(e.target.value)} required className={`h-11 transition-all ${isDark ? 'bg-emerald-950/50 border-emerald-700/40 focus:border-emerald-500/50 focus:ring-emerald-500/20 placeholder:text-emerald-500/70 text-emerald-100' : 'bg-white border-emerald-300 focus:border-emerald-500 focus:ring-emerald-500/20 placeholder:text-emerald-500 text-emerald-900'}`} />
+      {/* Centered Card */}
+      <div className="relative z-10 w-full h-full flex items-center justify-center p-6 py-12">
+        <div className="w-full max-w-[480px]">
+          <div
+            className={`rounded-2xl backdrop-blur-xl p-8 lg:p-10 ${
+              isDark
+                ? 'bg-[#0d1a15]/90 border border-emerald-800/20 shadow-2xl shadow-black/50'
+                : 'bg-white/95 border border-emerald-200/60 shadow-[0_12px_48px_-12px_rgba(0,80,60,0.18)]'
+            }`}
+          >
+            <div className="flex flex-col items-center gap-3 mb-8">
+              <img src={arkeliumLogo} alt="Arkelium" className="h-28 w-auto select-none" />
             </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="password" className={`text-xs font-medium ${isDark ? 'text-white' : 'text-black'}`}>
-                {t.auth.password}
-              </Label>
-              <div className="relative">
-                <Input id="password" type={showPassword ? 'text' : 'password'} placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required className={`pr-10 h-11 transition-all ${isDark ? 'bg-emerald-950/50 border-emerald-700/30 focus:border-emerald-500/50 focus:ring-emerald-500/20 placeholder:text-emerald-700/50 text-emerald-100' : 'bg-white border-emerald-300 focus:border-emerald-500 focus:ring-emerald-500/20 placeholder:text-emerald-400 text-emerald-900'}`} />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors ${isDark ? 'text-emerald-600 hover:text-emerald-400' : 'text-emerald-400 hover:text-emerald-600'}`}>
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+
+            {errorMsg ? (
+              <div
+                className={`mb-5 rounded-xl px-4 py-3 text-sm ${
+                  isDark
+                    ? 'bg-red-950/30 border border-red-900/30 text-red-200/90'
+                    : 'bg-red-50 border border-red-200 text-red-700'
+                }`}
+              >
+                {errorMsg}
               </div>
-              {error && <p className="text-xs text-red-400 mt-2 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-                  {error}
-                </p>}
-            </div>
+            ) : null}
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Checkbox id="remember" checked={rememberMe} onCheckedChange={checked => setRememberMe(checked as boolean)} className={`h-5 w-5 rounded ${isDark ? 'border-emerald-500/70 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-500' : 'border-emerald-400 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600'}`} />
-                <Label htmlFor="remember" className={`text-sm font-normal cursor-pointer transition-colors ${isDark ? 'text-emerald-200/90 hover:text-white' : 'text-emerald-800 hover:text-black'}`}>
-                  {t.auth.rememberMe}
-                </Label>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <Label className={isDark ? 'text-emerald-100/90' : 'text-emerald-900'}>{t.email}</Label>
+                <Input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  type="email"
+                  autoComplete="email"
+                  placeholder="name@company.com"
+                  className={`h-12 ${
+                    isDark
+                      ? 'bg-emerald-950/30 border-emerald-800/30 text-emerald-100 placeholder:text-emerald-200/30'
+                      : 'bg-white border-emerald-200 text-emerald-900 placeholder:text-emerald-500/50'
+                  }`}
+                />
               </div>
-              
-              <Link to="/forgot-password" className={`text-xs transition-colors ${isDark ? 'text-white hover:text-white/80' : 'text-black hover:text-black/80'}`}>
-                {t.auth.forgotPassword}
-              </Link>
-            </div>
 
-            <Button type="submit" className="w-full h-11 text-sm font-semibold bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white shadow-lg shadow-emerald-900/30 hover:shadow-emerald-800/40 transition-all duration-200 border-0" disabled={isLoading}>
-              {isLoading ? <span className="flex items-center gap-2">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  {t.common.loading}
-                </span> : t.auth.signIn}
-            </Button>
-          </form>
+              <div className="space-y-2">
+                <Label className={isDark ? 'text-emerald-100/90' : 'text-emerald-900'}>{t.password}</Label>
+                <div className="relative">
+                  <Input
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    placeholder="••••••••"
+                    className={`h-12 pr-12 ${
+                      isDark
+                        ? 'bg-emerald-950/30 border-emerald-800/30 text-emerald-100 placeholder:text-emerald-200/30'
+                        : 'bg-white border-emerald-200 text-emerald-900 placeholder:text-emerald-500/50'
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className={`absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-2 transition ${
+                      isDark ? 'text-emerald-200/70 hover:bg-emerald-900/40' : 'text-emerald-700 hover:bg-emerald-50'
+                    }`}
+                    aria-label="Toggle password visibility"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
 
-          {/* Footer Note */}
-          <p className={`text-[11px] text-center mt-8 flex items-center justify-center gap-1.5 ${isDark ? 'text-emerald-400/60' : 'text-emerald-600/80'}`}>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/50" />
-            Secure access for authorized users only
-          </p>
+              <div className="flex items-center justify-between gap-4">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <Checkbox checked={rememberMe} onCheckedChange={(v) => setRememberMe(Boolean(v))} />
+                  <span className={isDark ? 'text-emerald-100/70' : 'text-emerald-900/70'}>{t.remember}</span>
+                </label>
+
+                <Link
+                  to="/forgot-password"
+                  className={`text-sm underline-offset-4 hover:underline ${
+                    isDark ? 'text-emerald-200/80' : 'text-emerald-700'
+                  }`}
+                >
+                  {t.forgot}
+                </Link>
+              </div>
+
+              <Button type="submit" disabled={isSubmitting} className="h-12 w-full rounded-xl text-base font-semibold">
+                {isSubmitting ? t.loading : t.button}
+              </Button>
+
+              <div className={`flex items-center justify-center gap-2 text-xs ${
+                isDark ? 'text-emerald-200/50' : 'text-emerald-700/60'
+              }`}>
+                <span className="inline-block h-2 w-2 rounded-full bg-emerald-500/60" />
+                <span>{t.secure}</span>
+              </div>
+            </form>
           </div>
         </div>
       </div>
-    </div>;
-};
-export default Login;
+    </div>
+  );
+}

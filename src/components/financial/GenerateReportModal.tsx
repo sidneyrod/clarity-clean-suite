@@ -8,10 +8,13 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAuditLog } from '@/hooks/useAuditLog';
 import { toast } from '@/hooks/use-toast';
-import { format, parseISO, isWithinInterval } from 'date-fns';
+import { format, isWithinInterval } from 'date-fns';
 import { Calendar as CalendarIcon, FileSpreadsheet, FileText, Download, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
+
+// ✅ CORREÇÃO CRÍTICA 1: Importar helpers de datas seguras
+import { formatSafeDate, toSafeLocalDate, toDateOnlyString } from '@/lib/dates';
 
 interface GenerateReportModalProps {
   open: boolean;
@@ -79,11 +82,12 @@ export const GenerateReportModal = ({ open, onOpenChange }: GenerateReportModalP
 
       if (error) throw error;
 
-      // Filter by date range (based on paid_at date)
+      // ✅ CORREÇÃO: Filter by date range usando toSafeLocalDate
       const filteredData = (data || []).filter(inv => {
         if (!inv.paid_at) return false;
         try {
-          const paidDate = parseISO(inv.paid_at);
+          const paidDate = toSafeLocalDate(inv.paid_at);
+          if (!paidDate) return false;
           return isWithinInterval(paidDate, { start: dateRange.from!, end: dateRange.to! });
         } catch {
           return false;
@@ -104,12 +108,12 @@ export const GenerateReportModal = ({ open, onOpenChange }: GenerateReportModalP
       setReportData(filteredData);
       setIsGenerated(true);
 
-      // Log the report generation
+      // ✅ CORREÇÃO: Log com datas formatadas corretamente
       await logAction({
         action: 'invoice_created',
         entityType: 'financial_report',
         details: {
-          description: `Financial report generated for period ${format(dateRange.from, 'yyyy-MM-dd')} to ${format(dateRange.to, 'yyyy-MM-dd')}`,
+          description: `Financial report generated for period ${toDateOnlyString(dateRange.from)} to ${toDateOnlyString(dateRange.to)}`,
           recordCount: filteredData.length,
           totalAmount: filteredData.reduce((sum, inv) => sum + inv.total, 0),
         },
@@ -136,13 +140,14 @@ export const GenerateReportModal = ({ open, onOpenChange }: GenerateReportModalP
 
   const exportToCSV = () => {
     if (!reportData || reportData.length === 0) return;
-    
+
     const headers = ['Date', 'Client', 'Invoice #', 'Service Date', 'Payment Method', 'Subtotal (CAD)', 'Tax (CAD)', 'Total (CAD)'];
     const rows = reportData.map(inv => [
-      inv.paid_at ? format(parseISO(inv.paid_at), 'yyyy-MM-dd') : '',
+      // ✅ CORREÇÃO: Usar formatSafeDate para datas
+      formatSafeDate(inv.paid_at, 'yyyy-MM-dd'),
       inv.client_name,
       inv.invoice_number,
-      inv.service_date ? format(parseISO(inv.service_date), 'yyyy-MM-dd') : '',
+      formatSafeDate(inv.service_date, 'yyyy-MM-dd'),
       paymentMethodLabels[inv.payment_method || ''] || inv.payment_method || '',
       inv.subtotal.toFixed(2),
       inv.tax_amount.toFixed(2),
@@ -158,7 +163,7 @@ export const GenerateReportModal = ({ open, onOpenChange }: GenerateReportModalP
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `financial-report-${format(dateRange?.from || new Date(), 'yyyy-MM-dd')}-to-${format(dateRange?.to || new Date(), 'yyyy-MM-dd')}.csv`;
+    a.download = `financial-report-${toDateOnlyString(dateRange?.from || new Date())}-to-${toDateOnlyString(dateRange?.to || new Date())}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     toast({ title: 'Success', description: 'CSV exported successfully' });
@@ -194,7 +199,7 @@ export const GenerateReportModal = ({ open, onOpenChange }: GenerateReportModalP
         <p>Period: ${dateRange?.from ? format(dateRange.from, 'MMMM d, yyyy') : ''} - ${dateRange?.to ? format(dateRange.to, 'MMMM d, yyyy') : ''}</p>
         <p>Generated: ${format(new Date(), 'MMMM d, yyyy HH:mm')}</p>
         <p>Records: ${summary.count} | Only Paid Invoices</p>
-        
+
         <table>
           <thead>
             <tr>
@@ -210,7 +215,7 @@ export const GenerateReportModal = ({ open, onOpenChange }: GenerateReportModalP
           <tbody>
             ${reportData.map(inv => `
               <tr>
-                <td>${inv.paid_at ? format(parseISO(inv.paid_at), 'yyyy-MM-dd') : ''}</td>
+                <td>${formatSafeDate(inv.paid_at, 'yyyy-MM-dd')}</td>
                 <td>${inv.client_name}</td>
                 <td>${inv.invoice_number}</td>
                 <td>${paymentMethodLabels[inv.payment_method || ''] || inv.payment_method || ''}</td>
@@ -229,7 +234,7 @@ export const GenerateReportModal = ({ open, onOpenChange }: GenerateReportModalP
             </tr>
           </tfoot>
         </table>
-        
+
         <div class="summary">
           <p>Total Revenue (Paid): $${summary.total.toFixed(2)} CAD</p>
         </div>
@@ -308,8 +313,8 @@ export const GenerateReportModal = ({ open, onOpenChange }: GenerateReportModalP
 
           {/* Generate Button */}
           {!isGenerated && (
-            <Button 
-              onClick={handleGenerateReport} 
+            <Button
+              onClick={handleGenerateReport}
               disabled={!dateRange?.from || !dateRange?.to || isLoading}
               className="w-full"
             >
@@ -369,7 +374,8 @@ export const GenerateReportModal = ({ open, onOpenChange }: GenerateReportModalP
                     ) : (
                       reportData.map((inv) => (
                         <tr key={inv.id} className="border-t">
-                          <td className="p-3">{inv.paid_at ? format(parseISO(inv.paid_at), 'MMM d, yyyy') : ''}</td>
+                          {/* ✅ CORREÇÃO: Usar formatSafeDate */}
+                          <td className="p-3">{formatSafeDate(inv.paid_at, 'MMM d, yyyy')}</td>
                           <td className="p-3">{inv.client_name}</td>
                           <td className="p-3 font-mono text-xs">{inv.invoice_number}</td>
                           <td className="p-3">{paymentMethodLabels[inv.payment_method || ''] || '-'}</td>

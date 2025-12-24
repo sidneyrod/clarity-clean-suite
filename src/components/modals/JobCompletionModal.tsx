@@ -15,8 +15,10 @@ import { Calendar } from '@/components/ui/calendar';
 import { Camera, Upload, CheckCircle, Clock, MapPin, User, DollarSign, CreditCard, Banknote, CalendarIcon, AlertTriangle, Loader2, X, Package } from 'lucide-react';
 import { ScheduledJob } from '@/stores/scheduleStore';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
 import { toast } from 'sonner';
+
+// ✅ CORREÇÃO CRÍTICA 1: Importar helper de datas seguras
+import { formatSafeDate } from '@/lib/dates';
 
 interface CompanyChecklistItem {
   id: string;
@@ -51,17 +53,17 @@ interface ChecklistItemState {
 const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompletionModalProps) => {
   const { t } = useLanguage();
   const { user } = useAuth();
-  
+
   const beforePhotoRef = useRef<HTMLInputElement>(null);
   const afterPhotoRef = useRef<HTMLInputElement>(null);
-  
+
   // Prevent double submission
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Company checklist items from database
   const [companyChecklistItems, setCompanyChecklistItems] = useState<CompanyChecklistItem[]>([]);
   const [loadingChecklistItems, setLoadingChecklistItems] = useState(false);
-  
+
   // Selected items (tools/supplies used by cleaner)
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
@@ -69,7 +71,7 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
   const [afterPhoto, setAfterPhoto] = useState<string | null>(null);
   const [uploadingBefore, setUploadingBefore] = useState(false);
   const [uploadingAfter, setUploadingAfter] = useState(false);
-  
+
   // Payment fields - REQUIRED for job completion
   const [paymentMethod, setPaymentMethod] = useState<'e-transfer' | 'cash' | ''>('');
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -82,7 +84,7 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
   // Fetch checklist items from company settings
   const fetchChecklistItems = async () => {
     if (!user?.profile?.company_id) return;
-    
+
     setLoadingChecklistItems(true);
     try {
       const { data, error } = await supabase
@@ -91,7 +93,7 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
         .eq('company_id', user.profile.company_id)
         .eq('is_active', true)
         .order('display_order', { ascending: true });
-      
+
       if (error) throw error;
       setCompanyChecklistItems(data || []);
     } catch (err) {
@@ -105,7 +107,7 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
   useEffect(() => {
     if (open && job) {
       fetchChecklistItems();
-      
+
       // If job already has checklist data, restore selected items
       if (job.checklist && Array.isArray(job.checklist)) {
         const previouslySelected = job.checklist
@@ -115,7 +117,7 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
       } else {
         setSelectedItems([]);
       }
-      
+
       setNotes('');
       setBeforePhoto(job.beforePhoto || null);
       setAfterPhoto(job.afterPhoto || null);
@@ -131,8 +133,8 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
   }, [open, job, user?.profile?.company_id]);
 
   const toggleChecklistItem = (itemName: string) => {
-    setSelectedItems(prev => 
-      prev.includes(itemName) 
+    setSelectedItems(prev =>
+      prev.includes(itemName)
         ? prev.filter(name => name !== itemName)
         : [...prev, itemName]
     );
@@ -144,29 +146,29 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
 
   const handlePhotoUpload = async (type: 'before' | 'after', file: File) => {
     if (!job || !user?.profile?.company_id) return;
-    
+
     const setUploading = type === 'before' ? setUploadingBefore : setUploadingAfter;
     const setPhoto = type === 'before' ? setBeforePhoto : setAfterPhoto;
-    
+
     setUploading(true);
-    
+
     try {
       // Validate file type
       if (!file.type.startsWith('image/')) {
         toast.error('Please select an image file');
         return;
       }
-      
+
       // Validate file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
         toast.error('File size must be less than 10MB');
         return;
       }
-      
+
       // Create unique file name
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.profile.company_id}/${job.id}/${type}-${Date.now()}.${fileExt}`;
-      
+
       // Upload to Supabase Storage
       const { data, error } = await supabase.storage
         .from('job-photos')
@@ -174,14 +176,14 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
           cacheControl: '3600',
           upsert: true
         });
-      
+
       if (error) throw error;
-      
+
       // Get public URL
       const { data: urlData } = supabase.storage
         .from('job-photos')
         .getPublicUrl(data.path);
-      
+
       setPhoto(urlData.publicUrl);
       toast.success(`${type === 'before' ? 'Before' : 'After'} photo uploaded`);
     } catch (err) {
@@ -211,24 +213,24 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
 
   const handleComplete = async () => {
     if (!job || isSubmitting) return;
-    
+
     // Payment is REQUIRED - validate before proceeding
     if (!isPaymentValid()) {
       return;
     }
-    
+
     // Prevent double submission
     setIsSubmitting(true);
-    
+
     // Close modal IMMEDIATELY to prevent reopening
     onOpenChange(false);
-    
+
     // Save checklist with selected items
     const checklistToSave = companyChecklistItems.map(item => ({
       item: item.name,
       completed: selectedItems.includes(item.name)
     }));
-    
+
     // Update job with checklist in database
     if (user?.profile?.company_id) {
       try {
@@ -241,7 +243,7 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
         console.error('Error saving checklist:', err);
       }
     }
-    
+
     const paymentData: PaymentData = {
       paymentMethod: paymentMethod as 'e-transfer' | 'cash',
       paymentAmount: parseFloat(paymentAmount) || 0,
@@ -249,14 +251,14 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
       paymentReference: paymentMethod === 'e-transfer' ? paymentReference : undefined,
       paymentReceivedBy: paymentMethod === 'cash' ? paymentReceivedBy as 'cleaner' | 'company' : undefined,
       paymentNotes,
-      cashHandlingChoice: paymentMethod === 'cash' && paymentReceivedBy === 'cleaner' 
-        ? cashHandlingChoice as 'keep_cash' | 'hand_to_admin' 
+      cashHandlingChoice: paymentMethod === 'cash' && paymentReceivedBy === 'cleaner'
+        ? cashHandlingChoice as 'keep_cash' | 'hand_to_admin'
         : undefined,
     };
-    
+
     // Call onComplete AFTER closing modal
     onComplete(job.id, afterPhoto || undefined, notes, paymentData);
-    
+
     // Reset submitting state after a delay to ensure cleanup
     setTimeout(() => setIsSubmitting(false), 500);
   };
@@ -282,7 +284,7 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
             {t.job.completeJob}
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-5 mt-3">
           {/* Job Info */}
           <Card className="border-border/50">
@@ -308,7 +310,7 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
               </div>
             </CardContent>
           </Card>
-          
+
           {/* Photos */}
           <div className="space-y-3">
             <h4 className="text-sm font-medium flex items-center gap-2">
@@ -326,7 +328,7 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
                   className="hidden"
                   onChange={(e) => handleFileSelect('before', e)}
                 />
-                <div 
+                <div
                   className={cn(
                     "h-28 rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer transition-colors relative overflow-hidden",
                     beforePhoto ? "border-success bg-success/5" : "border-border hover:border-primary hover:bg-muted/50",
@@ -362,7 +364,7 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
                   )}
                 </div>
               </div>
-              
+
               {/* After Photo */}
               <div className="space-y-2">
                 <Label>{t.job.after}</Label>
@@ -373,7 +375,7 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
                   className="hidden"
                   onChange={(e) => handleFileSelect('after', e)}
                 />
-                <div 
+                <div
                   className={cn(
                     "h-28 rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer transition-colors relative overflow-hidden",
                     afterPhoto ? "border-success bg-success/5" : "border-border hover:border-primary hover:bg-muted/50",
@@ -411,7 +413,7 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
               </div>
             </div>
           </div>
-          
+
           {/* Tools/Supplies Used (Checklist from Company Settings) - OPTIONAL */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -424,11 +426,11 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
                 <span className="text-sm text-muted-foreground">{selectedCount} {t.common.added || 'added'}</span>
               )}
             </div>
-            
+
             <p className="text-xs text-muted-foreground">
               {t.job.addToolsUsed || 'Add any tools or supplies you used for this cleaning service.'}
             </p>
-            
+
             {loadingChecklistItems ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -438,7 +440,7 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
                   {companyChecklistItems.map((item) => {
                     const isSelected = selectedItems.includes(item.name);
                     return (
-                      <div 
+                      <div
                         key={item.id}
                         className={cn(
                           "flex items-center space-x-3 p-2.5 rounded-lg border transition-colors cursor-pointer",
@@ -470,7 +472,7 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
               </div>
             )}
           </div>
-          
+
           {/* Payment Section - REQUIRED */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
@@ -480,7 +482,7 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
             <p className="text-xs text-muted-foreground">
               Payment must be recorded to complete this job.
             </p>
-            
+
             <Card className="border-primary/30 bg-primary/5">
               <CardContent className="pt-4 space-y-4">
                 {/* Payment Method */}
@@ -516,7 +518,7 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
                     <p className="text-xs text-destructive">Please select a payment method</p>
                   )}
                 </div>
-                
+
                 {/* Amount and Date */}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
@@ -537,7 +539,7 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
                       <p className="text-xs text-destructive">Please enter a valid amount</p>
                     )}
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label>Payment Date</Label>
                     <Popover>
@@ -550,7 +552,8 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
                           )}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {paymentDate ? format(paymentDate, "PPP") : "Select date"}
+                          {/* ✅ CORREÇÃO: Usar formatSafeDate */}
+                          {paymentDate ? formatSafeDate(paymentDate, "PPP") : "Select date"}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
@@ -565,7 +568,7 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
                     </Popover>
                   </div>
                 </div>
-                
+
                 {/* E-Transfer Reference */}
                 {paymentMethod === 'e-transfer' && (
                   <div className="space-y-2">
@@ -577,7 +580,7 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
                     />
                   </div>
                 )}
-                
+
                 {/* Cash Received By */}
                 {paymentMethod === 'cash' && (
                   <div className="space-y-4">
@@ -609,7 +612,7 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
                         <p className="text-xs text-destructive">Please select who received the payment</p>
                       )}
                     </div>
-                    
+
                     {/* Cash Handling Choice - Only when cleaner received cash */}
                     {paymentReceivedBy === 'cleaner' && (
                       <div className="space-y-3 p-4 rounded-lg border border-warning/30 bg-warning/5">
@@ -667,7 +670,7 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
                     )}
                   </div>
                 )}
-                
+
                 {/* Payment Notes */}
                 <div className="space-y-2">
                   <Label>Payment Notes</Label>
@@ -681,7 +684,7 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
               </CardContent>
             </Card>
           </div>
-          
+
           {/* Notes */}
           <div className="space-y-2">
             <Label>{t.job.notes}</Label>
@@ -692,7 +695,7 @@ const JobCompletionModal = ({ open, onOpenChange, job, onComplete }: JobCompleti
               rows={2}
             />
           </div>
-          
+
           <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               {t.common.cancel}
