@@ -84,6 +84,8 @@ export type Database = {
       activity_logs: {
         Row: {
           action: string
+          after_data: Json | null
+          before_data: Json | null
           company_id: string
           created_at: string
           details: Json | null
@@ -91,10 +93,15 @@ export type Database = {
           entity_type: string | null
           id: string
           ip_address: string | null
+          performed_by_user_id: string | null
+          reason: string | null
+          source: string
           user_id: string | null
         }
         Insert: {
           action: string
+          after_data?: Json | null
+          before_data?: Json | null
           company_id: string
           created_at?: string
           details?: Json | null
@@ -102,10 +109,15 @@ export type Database = {
           entity_type?: string | null
           id?: string
           ip_address?: string | null
+          performed_by_user_id?: string | null
+          reason?: string | null
+          source?: string
           user_id?: string | null
         }
         Update: {
           action?: string
+          after_data?: Json | null
+          before_data?: Json | null
           company_id?: string
           created_at?: string
           details?: Json | null
@@ -113,6 +125,9 @@ export type Database = {
           entity_type?: string | null
           id?: string
           ip_address?: string | null
+          performed_by_user_id?: string | null
+          reason?: string | null
+          source?: string
           user_id?: string | null
         }
         Relationships: [
@@ -552,14 +567,18 @@ export type Database = {
       companies: {
         Row: {
           address: string | null
+          business_number: string | null
           city: string | null
           created_at: string
+          dedicated_connection_id: string | null
           email: string | null
           id: string
           legal_name: string
           phone: string | null
           postal_code: string | null
           province: string | null
+          status: string
+          tenant_mode: string
           timezone: string | null
           trade_name: string
           updated_at: string
@@ -567,14 +586,18 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          business_number?: string | null
           city?: string | null
           created_at?: string
+          dedicated_connection_id?: string | null
           email?: string | null
           id?: string
           legal_name: string
           phone?: string | null
           postal_code?: string | null
           province?: string | null
+          status?: string
+          tenant_mode?: string
           timezone?: string | null
           trade_name: string
           updated_at?: string
@@ -582,14 +605,18 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          business_number?: string | null
           city?: string | null
           created_at?: string
+          dedicated_connection_id?: string | null
           email?: string | null
           id?: string
           legal_name?: string
           phone?: string | null
           postal_code?: string | null
           province?: string | null
+          status?: string
+          tenant_mode?: string
           timezone?: string | null
           trade_name?: string
           updated_at?: string
@@ -928,6 +955,65 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financial_periods: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          closed_reason: string | null
+          company_id: string
+          created_at: string
+          end_date: string
+          id: string
+          period_name: string
+          reopen_reason: string | null
+          reopened_at: string | null
+          reopened_by: string | null
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          closed_reason?: string | null
+          company_id: string
+          created_at?: string
+          end_date: string
+          id?: string
+          period_name: string
+          reopen_reason?: string | null
+          reopened_at?: string | null
+          reopened_by?: string | null
+          start_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          closed_reason?: string | null
+          company_id?: string
+          created_at?: string
+          end_date?: string
+          id?: string
+          period_name?: string
+          reopen_reason?: string | null
+          reopened_at?: string | null
+          reopened_by?: string | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_periods_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -1953,21 +2039,33 @@ export type Database = {
           company_id: string
           created_at: string
           id: string
+          invited_at: string | null
+          invited_by: string | null
+          joined_at: string | null
           role: Database["public"]["Enums"]["app_role"]
+          status: string
           user_id: string
         }
         Insert: {
           company_id: string
           created_at?: string
           id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          joined_at?: string | null
           role?: Database["public"]["Enums"]["app_role"]
+          status?: string
           user_id: string
         }
         Update: {
           company_id?: string
           created_at?: string
           id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          joined_at?: string | null
           role?: Database["public"]["Enums"]["app_role"]
+          status?: string
           user_id?: string
         }
         Relationships: [
@@ -2027,6 +2125,7 @@ export type Database = {
           scheduled_date: string
         }[]
       }
+      get_current_period: { Args: { p_company_id: string }; Returns: string }
       get_financial_report_data: {
         Args: { p_end_date: string; p_start_date: string }
         Returns: {
@@ -2090,6 +2189,10 @@ export type Database = {
         Returns: boolean
       }
       is_admin_or_manager: { Args: never; Returns: boolean }
+      is_period_open: {
+        Args: { p_company_id: string; p_date: string }
+        Returns: boolean
+      }
     }
     Enums: {
       account_type: "asset" | "liability" | "equity" | "revenue" | "expense"
