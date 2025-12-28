@@ -6,21 +6,32 @@ export type AuditAction =
   | 'client_created' | 'client_updated' | 'client_deleted' | 'client_inactivated'
   | 'contract_created' | 'contract_updated' | 'contract_deleted'
   | 'job_created' | 'job_updated' | 'job_completed' | 'job_cancelled'
-  | 'invoice_created' | 'invoice_sent' | 'invoice_paid' | 'invoice_cancelled'
+  | 'invoice_created' | 'invoice_sent' | 'invoice_paid' | 'invoice_cancelled' | 'invoice_updated'
   | 'payment_registered' | 'payment_confirmed' | 'payment_rejected'
   | 'payroll_created' | 'payroll_approved' | 'payroll_paid' | 'payroll_reprocessed'
+  | 'payroll_period_created' | 'payroll_period_updated'
   | 'absence_requested' | 'absence_approved' | 'absence_rejected'
-  | 'settings_updated' | 'login' | 'logout';
+  | 'settings_updated' | 'login' | 'logout'
+  | 'company_created' | 'company_updated'
+  | 'financial_transaction_created' | 'financial_transaction_updated'
+  | 'financial_period_created' | 'financial_period_closed' | 'financial_period_reopened' | 'financial_period_updated'
+  | 'estimate_created' | 'estimate_updated' | 'estimate_deleted' | 'estimate_sent';
+
+export type AuditSource = 'ui' | 'api' | 'system' | 'migration';
 
 interface AuditLogEntry {
   action: AuditAction;
   entityType?: string;
   entityId?: string;
+  beforeData?: Record<string, unknown>;
+  afterData?: Record<string, unknown>;
+  reason?: string;
+  source?: AuditSource;
   details?: {
-    previousValue?: any;
-    newValue?: any;
+    previousValue?: unknown;
+    newValue?: unknown;
     description?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 
@@ -43,16 +54,23 @@ export const logAuditEntry = async (
       return;
     }
 
+    const insertData = {
+      company_id: resolvedCompanyId,
+      user_id: userId || null,
+      action: entry.action,
+      entity_type: entry.entityType || null,
+      entity_id: entry.entityId || null,
+      before_data: entry.beforeData || null,
+      after_data: entry.afterData || null,
+      reason: entry.reason || null,
+      source: entry.source || 'ui',
+      performed_by_user_id: userId || null,
+      details: entry.details || null,
+    };
+
     const { error } = await supabase
       .from('activity_logs')
-      .insert({
-        company_id: resolvedCompanyId,
-        user_id: userId || null,
-        action: entry.action,
-        entity_type: entry.entityType,
-        entity_id: entry.entityId,
-        details: entry.details,
-      });
+      .insert(insertData as any);
 
     if (error) {
       console.error('Failed to create audit log:', error);
@@ -74,7 +92,54 @@ export const useAuditLog = () => {
     );
   };
 
-  return { logAction };
+  // Helper for logging changes with before/after data
+  const logChange = async (
+    action: AuditAction,
+    entityType: string,
+    entityId: string,
+    beforeData: Record<string, unknown>,
+    afterData: Record<string, unknown>,
+    reason?: string
+  ) => {
+    await logAction({
+      action,
+      entityType,
+      entityId,
+      beforeData,
+      afterData,
+      reason,
+      source: 'ui',
+    });
+  };
+
+  // Helper for logging sensitive actions that require a reason
+  const logSensitiveAction = async (
+    action: AuditAction,
+    entityType: string,
+    entityId: string,
+    reason: string,
+    additionalData?: Record<string, unknown>
+  ) => {
+    if (!reason.trim()) {
+      console.warn('Sensitive actions require a reason');
+      return;
+    }
+
+    await logAction({
+      action,
+      entityType,
+      entityId,
+      reason,
+      source: 'ui',
+      details: additionalData,
+    });
+  };
+
+  return { 
+    logAction, 
+    logChange, 
+    logSensitiveAction 
+  };
 };
 
 export default useAuditLog;

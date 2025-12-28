@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.send-receipt-email]
 verify_jwt = true
+
+[functions.setup-company]
+verify_jwt = true
