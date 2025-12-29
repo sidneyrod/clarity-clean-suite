@@ -126,8 +126,9 @@ const Dashboard = () => {
     const today = format(new Date(), 'yyyy-MM-dd');
     const weekStart = format(startOfWeek(new Date()), 'yyyy-MM-dd');
     const weekEnd = format(endOfWeek(new Date()), 'yyyy-MM-dd');
-    const monthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-    const monthEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+    // Use selected period for revenue/payments filtering
+    const periodStart = format(period.startDate, 'yyyy-MM-dd');
+    const periodEnd = format(period.endDate, 'yyyy-MM-dd');
 
     try {
       // For cleaners: only fetch their own jobs
@@ -218,14 +219,14 @@ const Dashboard = () => {
         .select('id')
         .eq('company_id', companyId);
 
-      // Fetch monthly revenue from paid invoices
+      // Fetch revenue from paid invoices using selected period
       const { data: paidInvoices } = await supabase
         .from('invoices')
         .select('total')
         .eq('company_id', companyId)
         .eq('status', 'paid')
-        .gte('paid_at', monthStart)
-        .lte('paid_at', monthEnd);
+        .gte('paid_at', periodStart)
+        .lte('paid_at', periodEnd);
 
       // Fetch pending payments
       const { data: pendingInvoices } = await supabase
@@ -306,7 +307,7 @@ const Dashboard = () => {
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
     }
-  }, [user?.profile?.company_id, user?.id, isCleaner]);
+  }, [user?.profile?.company_id, user?.id, isCleaner, period]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -465,7 +466,7 @@ const Dashboard = () => {
             tooltip="Click to view all active clients"
           />
           <StatCard 
-            title={t.dashboard.monthlyRevenue} 
+            title={t.dashboard.monthlyRevenue}
             value={`$${stats.monthlyRevenue.toLocaleString()}`} 
             icon={DollarSign}
             variant="gold"
