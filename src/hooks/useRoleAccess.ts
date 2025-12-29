@@ -18,6 +18,7 @@ interface RolePermissions {
   canAccessCompany: boolean;
   canAccessSettings: boolean;
   canAccessAvailability: boolean; // Admin-only availability management
+  canAccessFinancialPeriods: boolean; // Admin/Manager can view
   
   // Action permissions
   canGenerateInvoices: boolean;
@@ -32,6 +33,8 @@ interface RolePermissions {
   canConfirmCashPayments: boolean;
   canMarkJobComplete: boolean;
   canEditCompletedJob: boolean;
+  canManageFinancialPeriods: boolean; // Only admin can close/reopen
+  canViewFinancialPeriods: boolean; // Admin and Manager can view
 }
 
 // Role permission matrix
@@ -52,6 +55,7 @@ const rolePermissions: Record<UserRole, RolePermissions> = {
     canAccessCompany: true,
     canAccessSettings: true,
     canAccessAvailability: true,
+    canAccessFinancialPeriods: true,
     canGenerateInvoices: true,
     canEditPayroll: true,
     canDeleteRecords: true,
@@ -64,6 +68,8 @@ const rolePermissions: Record<UserRole, RolePermissions> = {
     canConfirmCashPayments: true,
     canMarkJobComplete: true,
     canEditCompletedJob: false, // Nobody can edit completed jobs
+    canManageFinancialPeriods: true, // Admin can close/reopen
+    canViewFinancialPeriods: true,
   },
   manager: {
     canAccessUsers: false,
@@ -81,6 +87,7 @@ const rolePermissions: Record<UserRole, RolePermissions> = {
     canAccessCompany: false,
     canAccessSettings: false,
     canAccessAvailability: true, // Can view
+    canAccessFinancialPeriods: true,
     canGenerateInvoices: false, // Only admin
     canEditPayroll: false,
     canDeleteRecords: false,
@@ -93,6 +100,8 @@ const rolePermissions: Record<UserRole, RolePermissions> = {
     canConfirmCashPayments: false,
     canMarkJobComplete: true,
     canEditCompletedJob: false,
+    canManageFinancialPeriods: false, // Only admin
+    canViewFinancialPeriods: true,
   },
   cleaner: {
     canAccessUsers: false,
@@ -110,6 +119,7 @@ const rolePermissions: Record<UserRole, RolePermissions> = {
     canAccessCompany: false,
     canAccessSettings: false,
     canAccessAvailability: false, // Cannot access, only view via admin
+    canAccessFinancialPeriods: false,
     canGenerateInvoices: false,
     canEditPayroll: false,
     canDeleteRecords: false,
@@ -122,6 +132,8 @@ const rolePermissions: Record<UserRole, RolePermissions> = {
     canConfirmCashPayments: false,
     canMarkJobComplete: true, // Can complete own jobs
     canEditCompletedJob: false,
+    canManageFinancialPeriods: false,
+    canViewFinancialPeriods: false,
   },
 };
 
@@ -141,6 +153,7 @@ const defaultPermissions: RolePermissions = {
   canAccessCompany: false,
   canAccessSettings: false,
   canAccessAvailability: false,
+  canAccessFinancialPeriods: false,
   canGenerateInvoices: false,
   canEditPayroll: false,
   canDeleteRecords: false,
@@ -153,6 +166,8 @@ const defaultPermissions: RolePermissions = {
   canConfirmCashPayments: false,
   canMarkJobComplete: false,
   canEditCompletedJob: false,
+  canManageFinancialPeriods: false,
+  canViewFinancialPeriods: false,
 };
 
 export const useRoleAccess = () => {
