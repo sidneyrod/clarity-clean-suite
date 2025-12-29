@@ -1906,7 +1906,7 @@ export type Database = {
           address: string | null
           avatar_url: string | null
           city: string | null
-          company_id: string | null
+          company_id: string
           country: string | null
           created_at: string
           email: string | null
@@ -1930,7 +1930,7 @@ export type Database = {
           address?: string | null
           avatar_url?: string | null
           city?: string | null
-          company_id?: string | null
+          company_id: string
           country?: string | null
           created_at?: string
           email?: string | null
@@ -1954,7 +1954,7 @@ export type Database = {
           address?: string | null
           avatar_url?: string | null
           city?: string | null
-          company_id?: string | null
+          company_id?: string
           country?: string | null
           created_at?: string
           email?: string | null
