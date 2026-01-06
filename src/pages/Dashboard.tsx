@@ -605,15 +605,15 @@ const Dashboard = () => {
 
       {/* Cash Pending + Alerts Section - Only for Admin/Manager */}
       {isAdminOrManager && (
-        <div className="space-y-4">
-          <div className="grid gap-4 lg:grid-cols-3">
+        <div className="space-y-3">
+          <div className="grid gap-3 lg:grid-cols-3">
             {/* Cash Pending Card */}
             <CashPendingCard />
             
             {/* Alerts Grid */}
-            <div className="lg:col-span-2 space-y-4">
-              <h2 className="text-lg font-semibold heading-secondary">{t.dashboard.alerts}</h2>
-              <div className="grid gap-4 sm:grid-cols-2">
+            <div className="lg:col-span-2 space-y-2">
+              <h2 className="text-base font-semibold heading-secondary">{t.dashboard.alerts}</h2>
+              <div className="grid gap-2.5 grid-cols-2">
                 <AlertCard 
                   type="delayed" 
                   title={t.dashboard.delayedJobs} 
