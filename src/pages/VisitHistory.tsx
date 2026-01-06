@@ -320,7 +320,7 @@ const VisitHistory = () => {
   };
 
   return (
-    <div className="space-y-4 p-2">
+    <div className="space-y-2 p-2 lg:p-3">
       {/* Header Section with more spacing */}
       <div className="pt-3">
         <PageHeader 

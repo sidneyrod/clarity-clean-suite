@@ -683,7 +683,7 @@ const Contracts = () => {
   ];
 
   return (
-    <div className="container px-4 py-3 lg:px-5 space-y-3">
+    <div className="p-2 lg:p-3 space-y-2">
       <PageHeader 
         title={t.contracts.title}
         description="Manage service contracts and agreements"

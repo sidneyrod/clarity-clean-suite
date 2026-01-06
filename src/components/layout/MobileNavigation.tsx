@@ -133,7 +133,7 @@ const MobileNavigation = () => {
 
   // Quick access items for bottom bar (Home + first 3 items from Operations)
   const quickAccessItems: MenuItem[] = [
-    { path: '/', label: t.nav.home, icon: Home },
+    { path: '/', label: 'Dashboard', icon: Home },
     { path: '/schedule', label: t.nav.schedule, icon: Calendar },
     { path: '/visit-history', label: 'Visits', icon: MapPin },
   ];
@@ -182,7 +182,7 @@ const MobileNavigation = () => {
               href="/"
               onClick={(e) => {
                 e.preventDefault();
-                handleNavClick({ path: '/', label: t.nav.home, icon: Home });
+                handleNavClick({ path: '/', label: 'Dashboard', icon: Home });
               }}
               className={cn(
                 'flex items-center gap-3 px-4 py-3 rounded-xl transition-colors mb-2',
@@ -190,7 +190,7 @@ const MobileNavigation = () => {
               )}
             >
               <Home className="h-5 w-5" />
-              <span className="font-medium">{t.nav.home}</span>
+              <span className="font-medium">Dashboard</span>
             </a>
 
             {/* Modules */}

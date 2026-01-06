@@ -240,7 +240,7 @@ const CleanerPayroll = () => {
 
   if (isLoading) {
     return (
-      <div className="container px-4 py-3 lg:px-5 space-y-3">
+      <div className="p-2 lg:p-3 space-y-2">
         <Skeleton className="h-10 w-48" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Skeleton className="h-24" />
@@ -254,7 +254,7 @@ const CleanerPayroll = () => {
   }
 
   return (
-    <div className="container px-4 py-3 lg:px-5 space-y-3">
+    <div className="p-2 lg:p-3 space-y-2">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <PageHeader 
           title={t.payroll.myPayroll}

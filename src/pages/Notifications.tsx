@@ -186,7 +186,7 @@ export default function Notifications() {
   };
 
   return (
-    <div className="container px-4 py-3 lg:px-5 space-y-3">
+    <div className="p-2 lg:p-3 space-y-2">
       <PageHeader
         title={t.notifications?.title || 'Notifications'}
         description={t.notifications?.description || 'Manage your notifications and alerts'}

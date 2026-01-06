@@ -148,7 +148,7 @@ const Sidebar = () => {
     const linkContent = (
       <a
         href="/"
-        onClick={handleNavClick('/', t.nav.home)}
+        onClick={handleNavClick('/', 'Dashboard')}
         className={cn(
           "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer",
           active 

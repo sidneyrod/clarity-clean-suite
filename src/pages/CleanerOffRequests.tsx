@@ -219,14 +219,14 @@ const CleanerOffRequests = () => {
 
   if (isLoading) {
     return (
-      <div className="p-3 lg:p-4 max-w-4xl mx-auto flex items-center justify-center min-h-[400px]">
+      <div className="p-2 lg:p-3 flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="container px-4 py-3 lg:px-5 space-y-3">
+    <div className="p-2 lg:p-3 space-y-2">
       <div className="flex items-center justify-between">
         <PageHeader 
           title={isEnglish ? "My Off Requests" : "Minhas Solicitações de Folga"}

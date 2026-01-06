@@ -191,7 +191,7 @@ const Calculator = () => {
   const acceptedValue = estimates.filter(e => e.status === 'accepted').reduce((sum, e) => sum + e.totalAmount, 0);
 
   return (
-    <div className="container px-4 py-3 lg:px-5 space-y-4">
+    <div className="p-2 lg:p-3 space-y-2">
       <PageHeader 
         title={t.calculator.title}
         description="Create and manage service estimates for clients"

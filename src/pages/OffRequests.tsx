@@ -421,7 +421,7 @@ const OffRequests = () => {
   }
 
   return (
-    <div className="container px-4 py-3 lg:px-5 space-y-3">
+    <div className="p-2 lg:p-3 space-y-2">
       <div className="flex items-center justify-between">
         <PageHeader 
           title={isEnglish ? "Off Requests" : "Solicitações de Folga"}

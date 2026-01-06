@@ -34,7 +34,7 @@ const TopNavigation = () => {
   const isManagerOrAdmin = user?.role === 'admin' || user?.role === 'manager';
 
   const navItems = [
-    { path: '/', label: t.nav.home, icon: Home },
+    { path: '/', label: 'Dashboard', icon: Home },
     { path: '/company', label: t.nav.company, icon: Building2 },
     { path: '/users', label: t.nav.users, icon: Users },
     { path: '/clients', label: t.nav.clients, icon: UserCircle },
