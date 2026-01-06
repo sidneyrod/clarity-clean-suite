@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import PageHeader from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,12 +11,48 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Activity, User, Users, FileText, Calendar as CalendarIcon, DollarSign, Settings, LogIn, LogOut, CalendarOff, ShieldAlert, Search, Filter, X } from 'lucide-react';
-import { useActivityStore, ActivityType, ActivityLog as ActivityLogType } from '@/stores/activityStore';
+import { Activity, User, Users, FileText, Calendar as CalendarIcon, DollarSign, Settings, LogIn, LogOut, CalendarOff, ShieldAlert, Search, Filter, X, Loader2, Banknote } from 'lucide-react';
 import { format, formatDistanceToNow, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-const activityIcons: Record<ActivityType, { icon: typeof Activity; color: string }> = {
+// Activity types for the system
+type ActivityAction = 
+  | 'user_created' | 'user_updated' | 'user_deleted'
+  | 'client_created' | 'client_updated' | 'client_deleted' | 'client_inactivated'
+  | 'contract_created' | 'contract_updated' | 'contract_deleted'
+  | 'job_created' | 'job_updated' | 'job_started' | 'job_completed' | 'job_cancelled'
+  | 'visit_completed'
+  | 'invoice_created' | 'invoice_sent' | 'invoice_paid' | 'invoice_cancelled' | 'invoice_updated'
+  | 'payment_registered' | 'payment_confirmed' | 'payment_rejected'
+  | 'estimate_created' | 'estimate_updated' | 'estimate_deleted' | 'estimate_sent'
+  | 'payroll_created' | 'payroll_approved' | 'payroll_paid' | 'payroll_reprocessed'
+  | 'payroll_period_created' | 'payroll_period_updated'
+  | 'settings_updated' | 'login' | 'logout'
+  | 'absence_requested' | 'absence_approved' | 'absence_rejected'
+  | 'company_created' | 'company_updated'
+  | 'financial_transaction_created' | 'financial_transaction_updated'
+  | 'financial_period_created' | 'financial_period_closed' | 'financial_period_reopened' | 'financial_period_updated'
+  | 'cash_kept_by_cleaner' | 'cash_delivered_to_office' | 'cash_compensation_settled';
+
+interface ActivityLogEntry {
+  id: string;
+  action: ActivityAction;
+  entity_type: string | null;
+  entity_id: string | null;
+  created_at: string;
+  details: {
+    description?: string;
+    entityName?: string;
+    [key: string]: unknown;
+  } | null;
+  performer: {
+    first_name: string | null;
+    last_name: string | null;
+  } | null;
+  user_id: string | null;
+}
+
+const activityIcons: Record<string, { icon: typeof Activity; color: string }> = {
   user_created: { icon: Users, color: 'text-success' },
   user_updated: { icon: Users, color: 'text-info' },
   user_deleted: { icon: Users, color: 'text-destructive' },
@@ -36,6 +73,7 @@ const activityIcons: Record<ActivityType, { icon: typeof Activity; color: string
   invoice_sent: { icon: DollarSign, color: 'text-info' },
   invoice_paid: { icon: DollarSign, color: 'text-primary' },
   invoice_cancelled: { icon: DollarSign, color: 'text-destructive' },
+  invoice_updated: { icon: DollarSign, color: 'text-info' },
   payment_registered: { icon: DollarSign, color: 'text-success' },
   payment_confirmed: { icon: DollarSign, color: 'text-primary' },
   payment_rejected: { icon: DollarSign, color: 'text-destructive' },
@@ -47,60 +85,36 @@ const activityIcons: Record<ActivityType, { icon: typeof Activity; color: string
   payroll_approved: { icon: DollarSign, color: 'text-primary' },
   payroll_paid: { icon: DollarSign, color: 'text-success' },
   payroll_reprocessed: { icon: DollarSign, color: 'text-warning' },
+  payroll_period_created: { icon: DollarSign, color: 'text-success' },
+  payroll_period_updated: { icon: DollarSign, color: 'text-info' },
   settings_updated: { icon: Settings, color: 'text-info' },
   login: { icon: LogIn, color: 'text-success' },
   logout: { icon: LogOut, color: 'text-muted-foreground' },
   absence_requested: { icon: CalendarOff, color: 'text-warning' },
   absence_approved: { icon: CalendarOff, color: 'text-success' },
   absence_rejected: { icon: CalendarOff, color: 'text-destructive' },
-};
-
-const typeToLabelKey: Record<ActivityType, string> = {
-  user_created: 'userCreated',
-  user_updated: 'userUpdated',
-  user_deleted: 'userDeleted',
-  client_created: 'clientCreated',
-  client_updated: 'clientUpdated',
-  client_deleted: 'clientDeleted',
-  client_inactivated: 'clientInactivated',
-  contract_created: 'contractCreated',
-  contract_updated: 'contractUpdated',
-  contract_deleted: 'contractDeleted',
-  job_created: 'jobCreated',
-  job_updated: 'jobUpdated',
-  job_started: 'jobStarted',
-  job_completed: 'jobCompleted',
-  job_cancelled: 'jobCancelled',
-  visit_completed: 'visitCompleted',
-  invoice_created: 'invoiceCreated',
-  invoice_sent: 'invoiceSent',
-  invoice_paid: 'invoicePaid',
-  invoice_cancelled: 'invoiceCancelled',
-  payment_registered: 'paymentRegistered',
-  payment_confirmed: 'paymentConfirmed',
-  payment_rejected: 'paymentRejected',
-  estimate_created: 'estimateCreated',
-  estimate_updated: 'estimateUpdated',
-  estimate_deleted: 'estimateDeleted',
-  estimate_sent: 'estimateSent',
-  payroll_created: 'payrollCreated',
-  payroll_approved: 'payrollApproved',
-  payroll_paid: 'payrollPaid',
-  payroll_reprocessed: 'payrollReprocessed',
-  settings_updated: 'settingsUpdated',
-  login: 'login',
-  logout: 'logout',
-  absence_requested: 'absenceRequested',
-  absence_approved: 'absenceApproved',
-  absence_rejected: 'absenceRejected',
+  company_created: { icon: Settings, color: 'text-success' },
+  company_updated: { icon: Settings, color: 'text-info' },
+  financial_transaction_created: { icon: DollarSign, color: 'text-success' },
+  financial_transaction_updated: { icon: DollarSign, color: 'text-info' },
+  financial_period_created: { icon: DollarSign, color: 'text-success' },
+  financial_period_closed: { icon: DollarSign, color: 'text-warning' },
+  financial_period_reopened: { icon: DollarSign, color: 'text-info' },
+  financial_period_updated: { icon: DollarSign, color: 'text-info' },
+  cash_kept_by_cleaner: { icon: Banknote, color: 'text-warning' },
+  cash_delivered_to_office: { icon: Banknote, color: 'text-success' },
+  cash_compensation_settled: { icon: Banknote, color: 'text-primary' },
 };
 
 const ITEMS_PER_PAGE = 20;
 
 const ActivityLog = () => {
   const { t } = useLanguage();
-  const { hasRole } = useAuth();
-  const { logs } = useActivityStore();
+  const { hasRole, user } = useAuth();
+  
+  // Activity logs from Supabase
+  const [logs, setLogs] = useState<ActivityLogEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -111,6 +125,45 @@ const ActivityLog = () => {
     to: undefined,
   });
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Fetch activity logs from Supabase
+  useEffect(() => {
+    const fetchLogs = async () => {
+      if (!user?.profile?.company_id) return;
+
+      try {
+        setIsLoading(true);
+        const { data, error } = await supabase
+          .from('activity_logs')
+          .select(`
+            id,
+            action,
+            entity_type,
+            entity_id,
+            created_at,
+            details,
+            user_id,
+            performer:performed_by_user_id (first_name, last_name)
+          `)
+          .eq('company_id', user.profile.company_id)
+          .order('created_at', { ascending: false })
+          .limit(500);
+
+        if (error) {
+          console.error('Error fetching activity logs:', error);
+          return;
+        }
+
+        setLogs((data || []) as unknown as ActivityLogEntry[]);
+      } catch (err) {
+        console.error('Error in fetchLogs:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchLogs();
+  }, [user?.profile?.company_id]);
 
   // Role-based access control - only admin and manager can view
   if (!hasRole(['admin', 'manager'])) {
@@ -129,12 +182,23 @@ const ActivityLog = () => {
 
   // Get unique users from logs
   const uniqueUsers = useMemo(() => {
-    const users = new Set(logs.map(log => log.userName));
-    return Array.from(users).sort();
+    const users = new Map<string, string>();
+    logs.forEach(log => {
+      if (log.performer) {
+        const name = `${log.performer.first_name || ''} ${log.performer.last_name || ''}`.trim();
+        if (name && log.user_id) {
+          users.set(log.user_id, name);
+        }
+      }
+    });
+    return Array.from(users.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
   }, [logs]);
 
-  // Get unique action types
-  const actionTypes = Object.keys(activityIcons) as ActivityType[];
+  // Get unique action types from logs
+  const actionTypes = useMemo(() => {
+    const types = new Set(logs.map(log => log.action));
+    return Array.from(types).sort();
+  }, [logs]);
 
   // Filtered logs
   const filteredLogs = useMemo(() => {
@@ -142,21 +206,24 @@ const ActivityLog = () => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const matchesDescription = log.description.toLowerCase().includes(query);
-        const matchesUser = log.userName.toLowerCase().includes(query);
-        const matchesType = log.type.toLowerCase().includes(query);
-        if (!matchesDescription && !matchesUser && !matchesType) return false;
+        const description = log.details?.description?.toLowerCase() || '';
+        const entityName = log.details?.entityName?.toLowerCase() || '';
+        const userName = log.performer ? `${log.performer.first_name || ''} ${log.performer.last_name || ''}`.toLowerCase() : '';
+        const action = log.action.toLowerCase();
+        if (!description.includes(query) && !entityName.includes(query) && !userName.includes(query) && !action.includes(query)) {
+          return false;
+        }
       }
 
       // User filter
-      if (selectedUser !== 'all' && log.userName !== selectedUser) return false;
+      if (selectedUser !== 'all' && log.user_id !== selectedUser) return false;
 
       // Type filter
-      if (selectedType !== 'all' && log.type !== selectedType) return false;
+      if (selectedType !== 'all' && log.action !== selectedType) return false;
 
       // Date range filter
       if (dateRange.from || dateRange.to) {
-        const logDate = new Date(log.timestamp);
+        const logDate = new Date(log.created_at);
         if (dateRange.from && dateRange.to) {
           if (!isWithinInterval(logDate, { 
             start: startOfDay(dateRange.from), 
@@ -180,9 +247,24 @@ const ActivityLog = () => {
     currentPage * ITEMS_PER_PAGE
   );
 
-  const getTypeLabel = (type: ActivityType): string => {
-    const key = typeToLabelKey[type] as keyof typeof t.activityLog.types;
-    return t.activityLog.types[key] || type;
+  const getTypeLabel = (action: string): string => {
+    // Convert snake_case to Title Case
+    return action.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  };
+
+  const getDescription = (log: ActivityLogEntry): string => {
+    if (log.details?.description) {
+      return log.details.description;
+    }
+    const entityName = log.details?.entityName || log.entity_id?.slice(0, 8) || '';
+    return `${getTypeLabel(log.action)}${entityName ? `: ${entityName}` : ''}`;
+  };
+
+  const getPerformerName = (log: ActivityLogEntry): string => {
+    if (log.performer) {
+      return `${log.performer.first_name || ''} ${log.performer.last_name || ''}`.trim() || 'Unknown User';
+    }
+    return 'System';
   };
 
   const clearFilters = () => {
@@ -194,6 +276,14 @@ const ActivityLog = () => {
   };
 
   const hasActiveFilters = searchQuery || selectedUser !== 'all' || selectedType !== 'all' || dateRange.from || dateRange.to;
+
+  if (isLoading) {
+    return (
+      <div className="p-4 lg:p-6 max-w-7xl mx-auto flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-6">
@@ -207,7 +297,7 @@ const ActivityLog = () => {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name, email, or action..."
+                placeholder="Search by description, user, or action..."
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                 className="pl-9 h-9"
@@ -221,8 +311,8 @@ const ActivityLog = () => {
               </SelectTrigger>
               <SelectContent className="bg-popover">
                 <SelectItem value="all">All Users</SelectItem>
-                {uniqueUsers.map(user => (
-                  <SelectItem key={user} value={user}>{user}</SelectItem>
+                {uniqueUsers.map(u => (
+                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -297,7 +387,7 @@ const ActivityLog = () => {
           <ScrollArea className="h-[500px] pr-4">
             <div className="space-y-3">
               {paginatedLogs.map((log) => {
-                const config = activityIcons[log.type];
+                const config = activityIcons[log.action] || { icon: Activity, color: 'text-muted-foreground' };
                 const Icon = config.icon;
                 return (
                   <div key={log.id} className="flex items-start gap-3 p-3 rounded-lg border border-border/50 bg-card hover:bg-muted/30 transition-colors">
@@ -306,15 +396,21 @@ const ActivityLog = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-medium truncate">{log.description}</p>
-                        <Badge variant="outline" className="shrink-0 text-xs">{getTypeLabel(log.type)}</Badge>
+                        <p className="text-sm font-medium truncate">{getDescription(log)}</p>
+                        <Badge variant="outline" className="shrink-0 text-xs">{getTypeLabel(log.action)}</Badge>
                       </div>
                       <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
-                        <span>{log.userName}</span>
+                        <span className="font-medium">{getPerformerName(log)}</span>
                         <span>•</span>
-                        <span title={format(new Date(log.timestamp), 'PPpp')}>
-                          {formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}
+                        <span title={format(new Date(log.created_at), 'PPpp')}>
+                          {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
                         </span>
+                        {log.entity_type && (
+                          <>
+                            <span>•</span>
+                            <span className="capitalize">{log.entity_type}</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>

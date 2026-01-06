@@ -7,6 +7,8 @@ import StatCard from '@/components/ui/stat-card';
 import AlertCard from '@/components/ui/alert-card';
 import useRoleAccess from '@/hooks/useRoleAccess';
 import { PeriodSelector, DateRange } from '@/components/ui/period-selector';
+import CashPendingCard from '@/components/dashboard/CashPendingCard';
+import OverdueJobAlert from '@/components/schedule/OverdueJobAlert';
 import { 
   Briefcase, 
   Users, 
@@ -596,31 +598,44 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Alerts Section - Only for Admin/Manager */}
+      {/* Overdue Job Alert - For Admin/Manager */}
+      {isAdminOrManager && (
+        <OverdueJobAlert />
+      )}
+
+      {/* Cash Pending + Alerts Section - Only for Admin/Manager */}
       {isAdminOrManager && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold heading-secondary">{t.dashboard.alerts}</h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <AlertCard 
-              type="delayed" 
-              title={t.dashboard.delayedJobs} 
-              count={alertStats.delayedJobs} 
-            />
-            <AlertCard 
-              type="invoice" 
-              title={t.dashboard.pendingInvoices} 
-              count={alertStats.pendingInvoices} 
-            />
-            <AlertCard 
-              type="conflict" 
-              title="Pending Off Requests" 
-              count={alertStats.pendingOffRequests} 
-            />
-            <AlertCard 
-              type="churn" 
-              title={t.dashboard.scheduleConflicts} 
-              count={alertStats.scheduleConflicts} 
-            />
+          <div className="grid gap-4 lg:grid-cols-3">
+            {/* Cash Pending Card */}
+            <CashPendingCard />
+            
+            {/* Alerts Grid */}
+            <div className="lg:col-span-2 space-y-4">
+              <h2 className="text-lg font-semibold heading-secondary">{t.dashboard.alerts}</h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <AlertCard 
+                  type="delayed" 
+                  title={t.dashboard.delayedJobs} 
+                  count={alertStats.delayedJobs} 
+                />
+                <AlertCard 
+                  type="invoice" 
+                  title={t.dashboard.pendingInvoices} 
+                  count={alertStats.pendingInvoices} 
+                />
+                <AlertCard 
+                  type="conflict" 
+                  title="Pending Off Requests" 
+                  count={alertStats.pendingOffRequests} 
+                />
+                <AlertCard 
+                  type="churn" 
+                  title={t.dashboard.scheduleConflicts} 
+                  count={alertStats.scheduleConflicts} 
+                />
+              </div>
+            </div>
           </div>
         </div>
       )}
