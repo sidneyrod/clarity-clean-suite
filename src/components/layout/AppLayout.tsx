@@ -94,7 +94,7 @@ const AppLayout = () => {
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-background flex w-full">
+      <div className="min-h-screen bg-background flex w-full" style={{ zoom: 0.85 }}>
         {/* Sidebar - Desktop only */}
         <Sidebar />
         
