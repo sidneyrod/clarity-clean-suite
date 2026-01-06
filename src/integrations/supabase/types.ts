@@ -147,6 +147,113 @@ export type Database = {
           },
         ]
       }
+      cash_collections: {
+        Row: {
+          amount: number
+          cash_handling: string
+          cleaner_id: string
+          client_id: string
+          company_id: string
+          compensation_status: string
+          created_at: string
+          handled_at: string
+          handled_by_user_id: string | null
+          id: string
+          job_id: string
+          notes: string | null
+          payment_receipt_id: string | null
+          payroll_period_id: string | null
+          service_date: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          cash_handling: string
+          cleaner_id: string
+          client_id: string
+          company_id: string
+          compensation_status?: string
+          created_at?: string
+          handled_at?: string
+          handled_by_user_id?: string | null
+          id?: string
+          job_id: string
+          notes?: string | null
+          payment_receipt_id?: string | null
+          payroll_period_id?: string | null
+          service_date: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          cash_handling?: string
+          cleaner_id?: string
+          client_id?: string
+          company_id?: string
+          compensation_status?: string
+          created_at?: string
+          handled_at?: string
+          handled_by_user_id?: string | null
+          id?: string
+          job_id?: string
+          notes?: string | null
+          payment_receipt_id?: string | null
+          payroll_period_id?: string | null
+          service_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_collections_cleaner_id_fkey"
+            columns: ["cleaner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_collections_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_collections_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_collections_handled_by_user_id_fkey"
+            columns: ["handled_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_collections_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_collections_payment_receipt_id_fkey"
+            columns: ["payment_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "payment_receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_collections_payroll_period_id_fkey"
+            columns: ["payroll_period_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chart_of_accounts: {
         Row: {
           account_code: string

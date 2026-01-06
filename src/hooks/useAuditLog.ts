@@ -15,7 +15,9 @@ export type AuditAction =
   | 'company_created' | 'company_updated'
   | 'financial_transaction_created' | 'financial_transaction_updated'
   | 'financial_period_created' | 'financial_period_closed' | 'financial_period_reopened' | 'financial_period_updated'
-  | 'estimate_created' | 'estimate_updated' | 'estimate_deleted' | 'estimate_sent';
+  | 'estimate_created' | 'estimate_updated' | 'estimate_deleted' | 'estimate_sent'
+  | 'cash_kept_by_cleaner' | 'cash_delivered_to_office' | 'cash_compensation_settled'
+  | 'job_overdue_alert';
 
 export type AuditSource = 'ui' | 'api' | 'system' | 'migration';
 

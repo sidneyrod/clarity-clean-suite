@@ -1,6 +1,6 @@
 import * as React from "react";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, addDays } from "date-fns";
-import { CalendarIcon, ChevronDown } from "lucide-react";
+import { CalendarIcon, ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -9,13 +9,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 export interface DateRange {
@@ -44,6 +37,7 @@ const periodLabels = {
     from: 'From',
     to: 'To',
     apply: 'Apply',
+    cancel: 'Cancel',
   },
   fr: {
     today: "Aujourd'hui",
@@ -57,6 +51,7 @@ const periodLabels = {
     from: 'De',
     to: 'À',
     apply: 'Appliquer',
+    cancel: 'Annuler',
   },
 };
 
@@ -64,10 +59,11 @@ export function PeriodSelector({ value, onChange, className }: PeriodSelectorPro
   const { language } = useLanguage();
   const labels = periodLabels[language] || periodLabels.en;
   
-  const [selectedPreset, setSelectedPreset] = React.useState<PeriodPreset>('this_week');
+  const [selectedPreset, setSelectedPreset] = React.useState<PeriodPreset>('this_month');
   const [customStart, setCustomStart] = React.useState<Date | undefined>(value.startDate);
   const [customEnd, setCustomEnd] = React.useState<Date | undefined>(value.endDate);
-  const [customOpen, setCustomOpen] = React.useState(false);
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [showCustomCalendar, setShowCustomCalendar] = React.useState(false);
 
   const getPresetRange = (preset: PeriodPreset): DateRange => {
     const today = new Date();
@@ -90,25 +86,35 @@ export function PeriodSelector({ value, onChange, className }: PeriodSelectorPro
       case 'custom':
         return value;
       default:
-        return { startDate: startOfWeek(today, { weekStartsOn: 1 }), endDate: endOfWeek(today, { weekStartsOn: 1 }) };
+        return { startDate: startOfMonth(today), endDate: endOfMonth(today) };
     }
   };
 
   const handlePresetSelect = (preset: PeriodPreset) => {
     setSelectedPreset(preset);
-    if (preset !== 'custom') {
+    if (preset === 'custom') {
+      setShowCustomCalendar(true);
+      setCustomStart(value.startDate);
+      setCustomEnd(value.endDate);
+    } else {
       const range = getPresetRange(preset);
       onChange(range);
-    } else {
-      setCustomOpen(true);
+      setIsOpen(false);
+      setShowCustomCalendar(false);
     }
   };
 
   const handleCustomApply = () => {
     if (customStart && customEnd) {
       onChange({ startDate: startOfDay(customStart), endDate: endOfDay(customEnd) });
-      setCustomOpen(false);
+      setIsOpen(false);
+      setShowCustomCalendar(false);
     }
+  };
+
+  const handleCustomCancel = () => {
+    setShowCustomCalendar(false);
+    setSelectedPreset('this_month');
   };
 
   const getDisplayLabel = (): string => {
@@ -118,84 +124,105 @@ export function PeriodSelector({ value, onChange, className }: PeriodSelectorPro
     return labels[selectedPreset];
   };
 
+  const presets: { key: PeriodPreset; label: string; dividerAfter?: boolean }[] = [
+    { key: 'today', label: labels.today },
+    { key: 'this_week', label: labels.this_week },
+    { key: 'last_week', label: labels.last_week },
+    { key: 'biweekly', label: labels.biweekly, dividerAfter: true },
+    { key: 'this_month', label: labels.this_month },
+    { key: 'last_month', label: labels.last_month, dividerAfter: true },
+    { key: 'custom', label: labels.custom },
+  ];
+
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <Popover open={customOpen} onOpenChange={setCustomOpen}>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="min-w-[180px] justify-between">
-              <div className="flex items-center gap-2">
-                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                <span>{getDisplayLabel()}</span>
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className="min-w-[180px] justify-between">
+            <div className="flex items-center gap-2">
+              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+              <span>{getDisplayLabel()}</span>
+            </div>
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent 
+          className={cn(
+            "p-0",
+            showCustomCalendar ? "w-auto" : "w-48"
+          )} 
+          align="start"
+          sideOffset={4}
+        >
+          {!showCustomCalendar ? (
+            // Preset Selection Menu
+            <div className="py-1">
+              {presets.map((preset) => (
+                <React.Fragment key={preset.key}>
+                  <button
+                    className={cn(
+                      "w-full px-3 py-2 text-sm text-left hover:bg-muted flex items-center justify-between transition-colors",
+                      selectedPreset === preset.key && "bg-muted"
+                    )}
+                    onClick={() => handlePresetSelect(preset.key)}
+                  >
+                    <span>{preset.label}</span>
+                    {selectedPreset === preset.key && preset.key !== 'custom' && (
+                      <Check className="h-4 w-4 text-primary" />
+                    )}
+                  </button>
+                  {preset.dividerAfter && (
+                    <div className="h-px bg-border my-1" />
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+          ) : (
+            // Custom Date Range Picker
+            <div className="p-4 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{labels.from}</label>
+                  <Calendar
+                    mode="single"
+                    selected={customStart}
+                    onSelect={setCustomStart}
+                    className="p-0 pointer-events-auto"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{labels.to}</label>
+                  <Calendar
+                    mode="single"
+                    selected={customEnd}
+                    onSelect={setCustomEnd}
+                    disabled={(date) => customStart ? date < customStart : false}
+                    className="p-0 pointer-events-auto"
+                  />
+                </div>
               </div>
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-48">
-            <DropdownMenuItem onClick={() => handlePresetSelect('today')}>
-              {labels.today}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handlePresetSelect('this_week')}>
-              {labels.this_week}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handlePresetSelect('last_week')}>
-              {labels.last_week}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handlePresetSelect('biweekly')}>
-              {labels.biweekly}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => handlePresetSelect('this_month')}>
-              {labels.this_month}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handlePresetSelect('last_month')}>
-              {labels.last_month}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <PopoverTrigger asChild>
-              <DropdownMenuItem onClick={() => setSelectedPreset('custom')}>
-                {labels.custom}
-              </DropdownMenuItem>
-            </PopoverTrigger>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Custom Date Range Popover */}
-        <PopoverContent className="w-auto p-4" align="start" sideOffset={8}>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">{labels.from}</label>
-                <Calendar
-                  mode="single"
-                  selected={customStart}
-                  onSelect={setCustomStart}
-                  className={cn("p-0 pointer-events-auto")}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">{labels.to}</label>
-                <Calendar
-                  mode="single"
-                  selected={customEnd}
-                  onSelect={setCustomEnd}
-                  disabled={(date) => customStart ? date < customStart : false}
-                  className={cn("p-0 pointer-events-auto")}
-                />
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline"
+                  onClick={handleCustomCancel} 
+                  className="flex-1"
+                >
+                  {labels.cancel}
+                </Button>
+                <Button 
+                  onClick={handleCustomApply} 
+                  className="flex-1"
+                  disabled={!customStart || !customEnd}
+                >
+                  {labels.apply}
+                </Button>
               </div>
             </div>
-            <Button 
-              onClick={handleCustomApply} 
-              className="w-full"
-              disabled={!customStart || !customEnd}
-            >
-              {labels.apply}
-            </Button>
-          </div>
+          )}
         </PopoverContent>
       </Popover>
 
-      {/* Display current range */}
+      {/* Display current range inline */}
       {selectedPreset !== 'custom' && (
         <span className="text-sm text-muted-foreground hidden sm:inline">
           {format(value.startDate, 'MMM d')} - {format(value.endDate, 'MMM d, yyyy')}

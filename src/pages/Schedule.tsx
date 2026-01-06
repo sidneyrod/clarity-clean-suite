@@ -42,6 +42,7 @@ import JobCompletionModal, { PaymentData } from '@/components/modals/JobCompleti
 import StartServiceModal from '@/components/modals/StartServiceModal';
 import VisitCompletionModal, { VisitCompletionData } from '@/components/schedule/VisitCompletionModal';
 import ConfirmDialog from '@/components/modals/ConfirmDialog';
+import OverdueJobAlert from '@/components/schedule/OverdueJobAlert';
 import { notifyJobCreated, notifyJobUpdated, notifyJobCancelled, notifyVisitCreated, notifyJobCompleted, notifyInvoiceGenerated } from '@/hooks/useNotifications';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, startOfWeek, endOfWeek, addWeeks, subWeeks, isSameDay, addDays, subDays, parseISO } from 'date-fns';
 import { toSafeLocalDate } from '@/lib/dates';
@@ -67,6 +68,8 @@ interface ScheduledJob {
   jobType?: 'cleaning' | 'visit';
   visitPurpose?: string;
   visitRoute?: string;
+  paymentMethod?: string; // Track payment method for invoice vs receipt rules
+  serviceDate?: string;
 }
 
 
@@ -182,6 +185,8 @@ const Schedule = () => {
           completed_at,
           visit_purpose,
           visit_route,
+          payment_method,
+          payment_date,
           clients(id, name),
           profiles:cleaner_id(id, first_name, last_name),
           client_locations(address, city)
@@ -220,6 +225,8 @@ const Schedule = () => {
           jobType: isVisit ? 'visit' : 'cleaning',
           visitPurpose: job.visit_purpose,
           visitRoute: job.visit_route,
+          paymentMethod: job.payment_method || undefined,
+          serviceDate: job.scheduled_date,
         };
       });
       
@@ -852,17 +859,47 @@ const Schedule = () => {
           paymentData?.paymentMethod || undefined
         );
         
-        // Handle cash payments - create receipt
+        // Handle cash payments - create receipt and cash collection record
         if (paymentData?.paymentMethod === 'cash') {
           const receipt = await createCashReceipt(job, paymentData, companyId);
           if (receipt) {
-            toast.success(`Recibo ${receipt.receiptNumber} gerado com sucesso`);
+            toast.success(`Receipt ${receipt.receiptNumber} generated successfully`);
             
             // Create cleaner payment entry for cash
             if (job.employeeId) {
               const durationHours = parseFloat(job.duration.replace(/[^0-9.]/g, '')) || 2;
               await createCleanerPayment(job, paymentData.paymentAmount, durationHours, paymentData);
             }
+            
+            // Create cash collection record for tracking
+            const cashHandling = paymentData.cashHandlingChoice === 'keep_cash' 
+              ? 'kept_by_cleaner' 
+              : 'delivered_to_office';
+            
+            const compensationStatus = cashHandling === 'kept_by_cleaner' 
+              ? 'pending' 
+              : 'not_applicable';
+            
+            await supabase.from('cash_collections').insert({
+              company_id: companyId,
+              job_id: jobId,
+              cleaner_id: job.employeeId || user?.id,
+              client_id: job.clientId,
+              amount: paymentData.paymentAmount,
+              cash_handling: cashHandling,
+              handled_by_user_id: user?.id,
+              compensation_status: compensationStatus,
+              service_date: job.date,
+              notes: paymentData.paymentNotes || null,
+            } as any);
+            
+            // Log activity for cash handling
+            logActivity(
+              cashHandling === 'kept_by_cleaner' ? 'cash_kept_by_cleaner' as any : 'cash_delivered_to_office' as any,
+              `Cash $${paymentData.paymentAmount.toFixed(2)} ${cashHandling === 'kept_by_cleaner' ? 'kept by cleaner' : 'delivered to office'}`,
+              jobId,
+              job.clientName
+            );
           }
           
           // Skip invoice generation for cash payments
@@ -1113,6 +1150,9 @@ const Schedule = () => {
 
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-4">
+      {/* Overdue Job Alert - For Admin/Manager and Cleaners */}
+      <OverdueJobAlert />
+      
       {/* Controls - Compact header with calendar navigation */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex items-center gap-2">
@@ -1685,18 +1725,28 @@ const Schedule = () => {
                   <>
                     {selectedJob.jobType !== 'visit' ? (
                       <>
-                        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleViewInvoice(selectedJob)}>
-                          <Receipt className="h-4 w-4" />
-                          View Invoice
-                        </Button>
-                        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleSendInvoiceEmail(selectedJob)}>
-                          <Mail className="h-4 w-4" />
-                          Email
-                        </Button>
-                        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleSendInvoiceSms(selectedJob)}>
-                          <MessageSquare className="h-4 w-4" />
-                          SMS
-                        </Button>
+                        {/* Invoice buttons - HIDDEN for cash payments per business rule */}
+                        {selectedJob.paymentMethod !== 'cash' ? (
+                          <>
+                            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleViewInvoice(selectedJob)}>
+                              <Receipt className="h-4 w-4" />
+                              View Invoice
+                            </Button>
+                            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleSendInvoiceEmail(selectedJob)}>
+                              <Mail className="h-4 w-4" />
+                              Email
+                            </Button>
+                            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleSendInvoiceSms(selectedJob)}>
+                              <MessageSquare className="h-4 w-4" />
+                              SMS
+                            </Button>
+                          </>
+                        ) : (
+                          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted/50 text-xs text-muted-foreground">
+                            <Receipt className="h-3.5 w-3.5" />
+                            <span>Cash payment - Receipt generated (no invoice)</span>
+                          </div>
+                        )}
                       </>
                     ) : (
                       <>

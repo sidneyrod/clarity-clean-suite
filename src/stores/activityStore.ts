@@ -13,7 +13,9 @@ export type ActivityType =
   | 'estimate_created' | 'estimate_updated' | 'estimate_deleted' | 'estimate_sent'
   | 'payroll_created' | 'payroll_approved' | 'payroll_paid' | 'payroll_reprocessed'
   | 'settings_updated' | 'login' | 'logout'
-  | 'absence_requested' | 'absence_approved' | 'absence_rejected';
+  | 'absence_requested' | 'absence_approved' | 'absence_rejected'
+  | 'cash_kept_by_cleaner' | 'cash_delivered_to_office' | 'cash_compensation_settled'
+  | 'job_overdue_alert';
 
 export interface ActivityLog {
   id: string;
