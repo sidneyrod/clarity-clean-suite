@@ -157,10 +157,10 @@ const WorkspaceTabs = () => {
 
   return (
     <>
-      <div className="relative flex items-center bg-sidebar-background dark:bg-[hsl(160,18%,8%)] border-b border-sidebar-border dark:border-[hsl(160,12%,14%)]">
+      <div className="relative flex items-center bg-sidebar-background dark:bg-[hsl(220,20%,8%)] border-b border-sidebar-border dark:border-[hsl(220,15%,14%)]">
         {/* Left fade indicator */}
         {showLeftFade && (
-          <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-sidebar-background dark:from-[hsl(160,18%,8%)] to-transparent z-10 pointer-events-none" />
+          <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-sidebar-background dark:from-[hsl(220,20%,8%)] to-transparent z-10 pointer-events-none" />
         )}
         
         {/* Scrollable tabs container with drag-to-scroll */}
@@ -185,8 +185,8 @@ const WorkspaceTabs = () => {
                     className={cn(
                       'group relative flex items-center gap-1 px-2.5 py-1.5 text-xs cursor-pointer border-r min-w-[90px] max-w-[160px] transition-all duration-200',
                       tab.isActive
-                        ? 'bg-primary/15 dark:bg-[hsl(156,45%,25%)] text-foreground dark:text-white shadow-[0_0_12px_hsl(156,45%,35%/0.2)] dark:shadow-[0_0_12px_hsl(156,45%,35%/0.3)] border-r-border dark:border-r-[hsl(160,12%,14%)]'
-                        : 'bg-sidebar-background dark:bg-[hsl(160,18%,10%)] text-muted-foreground border-r-border dark:border-r-[hsl(160,12%,14%)] hover:bg-accent dark:hover:bg-[hsl(160,18%,14%)] hover:text-foreground dark:hover:text-[hsl(150,15%,75%)]'
+                        ? 'bg-primary/15 dark:bg-[hsl(220,25%,20%)] text-foreground dark:text-white border-r-border dark:border-r-[hsl(220,15%,14%)]'
+                        : 'bg-sidebar-background dark:bg-[hsl(220,20%,10%)] text-muted-foreground border-r-border dark:border-r-[hsl(220,15%,14%)] hover:bg-accent dark:hover:bg-[hsl(220,20%,14%)] hover:text-foreground dark:hover:text-[hsl(220,15%,75%)]'
                     )}
                   >
                     {/* Unsaved changes indicator */}
@@ -216,11 +216,11 @@ const WorkspaceTabs = () => {
                     )}
                     {/* Active tab bottom indicator */}
                     {tab.isActive && (
-                      <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-primary dark:bg-[hsl(156,45%,55%)]" />
+                      <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-primary dark:bg-primary" />
                     )}
                   </div>
                 </ContextMenuTrigger>
-                <ContextMenuContent className="bg-card dark:bg-[hsl(160,18%,10%)] border-border dark:border-[hsl(160,12%,16%)]">
+                <ContextMenuContent className="bg-card dark:bg-[hsl(220,20%,10%)] border-border dark:border-[hsl(220,15%,16%)]">
                   <ContextMenuItem 
                     onClick={() => tab.hasUnsavedChanges ? setConfirmClose(tab.id) : performCloseTab(tab.id)} 
                     disabled={tabs.length === 1}
@@ -241,7 +241,7 @@ const WorkspaceTabs = () => {
 
         {/* Right fade indicator */}
         {showRightFade && (
-          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-sidebar-background dark:from-[hsl(160,18%,8%)] to-transparent z-10 pointer-events-none" />
+          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-sidebar-background dark:from-[hsl(220,20%,8%)] to-transparent z-10 pointer-events-none" />
         )}
       </div>
 

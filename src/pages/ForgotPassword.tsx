@@ -18,15 +18,13 @@ import {
 } from '@/components/ui/select';
 
 import arkeliumLogo from '@/assets/arkelium-logo.png';
-import arkeliumSymbol from '@/assets/arkelium-symbol.png';
 
 type Lang = 'en' | 'fr';
 
 export default function ForgotPassword() {
-  const { theme, toggleTheme } = useTheme(); // ✅ CORRIGIDO: theme ao invés de isDark
+  const { theme, toggleTheme } = useTheme();
   const { language, setLanguage } = useLanguage();
 
-  // ✅ Derivar isDark de theme
   const isDark = theme === 'dark';
 
   const [email, setEmail] = useState('');
@@ -95,13 +93,11 @@ export default function ForgotPassword() {
     <div
       className={`fixed inset-0 overflow-hidden ${
         isDark
-          ? 'bg-gradient-to-br from-[#0a1210] via-[#0d1a15] to-[#081410]'
-          : 'bg-[#EDF3F0]'
+          ? 'bg-[hsl(220,20%,8%)]'
+          : 'bg-[hsl(220,20%,97%)]'
       }`}
       style={{ zoom: 0.85 }}
     >
-
-
       {/* Top right controls */}
       <div className="fixed top-6 right-6 z-20">
         <div className="flex items-center gap-3">
@@ -109,13 +105,13 @@ export default function ForgotPassword() {
             <SelectTrigger
               className={`w-16 h-9 backdrop-blur-sm transition-colors text-xs ${
                 isDark
-                  ? 'bg-emerald-950/40 border-emerald-800/30 hover:bg-emerald-900/50 text-emerald-200/70'
-                  : 'bg-white/60 border-emerald-200 hover:bg-white/80 text-emerald-700'
+                  ? 'bg-[hsl(220,20%,12%)] border-[hsl(220,15%,20%)] hover:bg-[hsl(220,20%,16%)] text-[hsl(220,15%,70%)]'
+                  : 'bg-white border-[hsl(220,15%,85%)] hover:bg-[hsl(220,20%,95%)] text-[hsl(220,20%,30%)]'
               }`}
             >
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className={isDark ? 'bg-[#0d1a15] border-emerald-800/30' : 'bg-white border-emerald-200'}>
+            <SelectContent className={isDark ? 'bg-[hsl(220,20%,12%)] border-[hsl(220,15%,20%)]' : 'bg-white border-[hsl(220,15%,85%)]'}>
               <SelectItem value="en">EN</SelectItem>
               <SelectItem value="fr">FR</SelectItem>
             </SelectContent>
@@ -127,8 +123,8 @@ export default function ForgotPassword() {
             onClick={toggleTheme}
             className={`h-9 w-9 backdrop-blur-sm transition-colors ${
               isDark
-                ? 'bg-emerald-950/40 border-emerald-800/30 hover:bg-emerald-900/50 text-emerald-200/70'
-                : 'bg-white/60 border-emerald-200 hover:bg-white/80 text-emerald-700'
+                ? 'bg-[hsl(220,20%,12%)] border-[hsl(220,15%,20%)] hover:bg-[hsl(220,20%,16%)] text-[hsl(220,15%,70%)]'
+                : 'bg-white border-[hsl(220,15%,85%)] hover:bg-[hsl(220,20%,95%)] text-[hsl(220,20%,30%)]'
             }`}
           >
             {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -139,7 +135,7 @@ export default function ForgotPassword() {
       {/* Bottom left */}
       <div
         className={`fixed bottom-8 left-8 text-xs font-medium tracking-wide ${
-          isDark ? 'text-emerald-500/40' : 'text-emerald-700/60'
+          isDark ? 'text-[hsl(220,15%,40%)]' : 'text-[hsl(220,15%,50%)]'
         }`}
       >
         Powered by Arkelium
@@ -147,21 +143,21 @@ export default function ForgotPassword() {
 
       {/* Centered Card */}
       <div className="relative z-10 w-full h-full flex items-center justify-center p-6 py-12">
-        <div className="w-full max-w-[520px]">
+        <div className="w-full max-w-[440px]">
           <div
-            className={`rounded-2xl backdrop-blur-xl p-8 lg:p-10 ${
+            className={`rounded-xl p-8 ${
               isDark
-                ? 'bg-[#0d1a15]/90 border border-emerald-800/20 shadow-2xl shadow-black/50'
-                : 'bg-white/95 border border-emerald-200/60 shadow-[0_12px_48px_-12px_rgba(0,80,60,0.18)]'
+                ? 'bg-[hsl(220,20%,10%)] border border-[hsl(220,15%,18%)] shadow-2xl'
+                : 'bg-white border border-[hsl(220,15%,88%)] shadow-[0_4px_24px_-4px_rgba(0,0,0,0.08)]'
             }`}
           >
-            <div className="flex flex-col items-center gap-4 mb-6">
-              <img src={arkeliumLogo} alt="Arkelium" className="h-24 w-auto select-none" />
+            <div className="flex flex-col items-center gap-3 mb-6">
+              <img src={arkeliumLogo} alt="Arkelium" className="h-20 w-auto select-none" />
               <div className="text-center">
-                <h1 className={`text-xl font-semibold ${isDark ? 'text-emerald-100' : 'text-emerald-950'}`}>
+                <h1 className={`text-lg font-semibold ${isDark ? 'text-[hsl(220,15%,90%)]' : 'text-[hsl(220,20%,15%)]'}`}>
                   {t.title}
                 </h1>
-                <p className={`mt-2 text-sm ${isDark ? 'text-emerald-200/60' : 'text-emerald-900/60'}`}>
+                <p className={`mt-1.5 text-sm ${isDark ? 'text-[hsl(220,15%,55%)]' : 'text-[hsl(220,15%,45%)]'}`}>
                   {t.subtitle}
                 </p>
               </div>
@@ -169,7 +165,7 @@ export default function ForgotPassword() {
 
             {errorMsg ? (
               <div
-                className={`mb-5 rounded-xl px-4 py-3 text-sm ${
+                className={`mb-5 rounded-lg px-4 py-3 text-sm ${
                   isDark
                     ? 'bg-red-950/30 border border-red-900/30 text-red-200/90'
                     : 'bg-red-50 border border-red-200 text-red-700'
@@ -181,34 +177,42 @@ export default function ForgotPassword() {
 
             {successMsg ? (
               <div
-                className={`mb-5 rounded-xl px-4 py-3 text-sm ${
+                className={`mb-5 rounded-lg px-4 py-3 text-sm ${
                   isDark
-                    ? 'bg-emerald-950/30 border border-emerald-800/30 text-emerald-100/90'
-                    : 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                    ? 'bg-blue-950/30 border border-blue-900/30 text-blue-200/90'
+                    : 'bg-blue-50 border border-blue-200 text-blue-700'
                 }`}
               >
                 {successMsg}
               </div>
             ) : null}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
-                <Label className={isDark ? 'text-emerald-100/90' : 'text-emerald-900'}>{t.email}</Label>
+                <Label className={isDark ? 'text-[hsl(220,15%,80%)]' : 'text-[hsl(220,20%,20%)]'}>{t.email}</Label>
                 <Input
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   type="email"
                   autoComplete="email"
                   placeholder={t.placeholder}
-                  className={`h-12 ${
+                  className={`h-11 ${
                     isDark
-                      ? 'bg-emerald-950/30 border-emerald-800/30 text-emerald-100 placeholder:text-emerald-200/30'
-                      : 'bg-white border-emerald-200 text-emerald-900 placeholder:text-emerald-500/50'
+                      ? 'bg-[hsl(220,20%,8%)] border-[hsl(220,15%,20%)] text-[hsl(220,15%,90%)] placeholder:text-[hsl(220,15%,35%)]'
+                      : 'bg-white border-[hsl(220,15%,85%)] text-[hsl(220,20%,15%)] placeholder:text-[hsl(220,15%,55%)]'
                   }`}
                 />
               </div>
 
-              <Button type="submit" disabled={isSubmitting} className="h-12 w-full rounded-xl text-base font-semibold">
+              <Button 
+                type="submit" 
+                disabled={isSubmitting} 
+                className={`h-11 w-full rounded-lg text-sm font-semibold ${
+                  isDark 
+                    ? 'bg-[hsl(220,20%,90%)] text-[hsl(220,20%,10%)] hover:bg-[hsl(220,20%,85%)]' 
+                    : 'bg-[hsl(220,20%,15%)] text-white hover:bg-[hsl(220,20%,25%)]'
+                }`}
+              >
                 {isSubmitting ? '...' : t.button}
               </Button>
 
@@ -216,7 +220,7 @@ export default function ForgotPassword() {
                 <Link
                   to="/login"
                   className={`text-sm underline-offset-4 hover:underline ${
-                    isDark ? 'text-emerald-200/80' : 'text-emerald-700'
+                    isDark ? 'text-[hsl(220,15%,65%)]' : 'text-[hsl(220,15%,40%)]'
                   }`}
                 >
                   ← {t.back}
