@@ -81,7 +81,7 @@ const Settings = () => {
   };
 
   return (
-    <div className="container px-4 py-3 lg:px-5 space-y-4">
+    <div className="p-2 lg:p-3 space-y-2">
       <PageHeader 
         title={t.settings.title}
         description="Customize your application preferences"

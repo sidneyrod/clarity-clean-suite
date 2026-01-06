@@ -298,7 +298,7 @@ const Payroll = () => {
 
   if (isLoading) {
     return (
-      <div className="container px-4 py-3 lg:px-5 space-y-4">
+      <div className="p-2 lg:p-3 space-y-2">
         <Skeleton className="h-10 w-48" />
         <div className="grid gap-4 sm:grid-cols-3">
           <Skeleton className="h-24" />
@@ -311,7 +311,7 @@ const Payroll = () => {
   }
 
   return (
-    <div className="container px-4 py-3 lg:px-5 space-y-4">
+    <div className="p-2 lg:p-3 space-y-2">
       <PageHeader title={t.payroll.title} description="Manage employee payroll and compensation">
         <div className="flex gap-2">
           <Button variant="outline" className="gap-2" onClick={() => fetchPeriods()}>

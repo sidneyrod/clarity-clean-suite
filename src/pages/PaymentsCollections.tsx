@@ -456,7 +456,7 @@ const PaymentsCollections = () => {
 
   if (isLoading) {
     return (
-      <div className="container px-4 py-8 lg:px-8 space-y-8">
+      <div className="p-2 lg:p-3 space-y-2">
         <Skeleton className="h-10 w-64" />
         <div className="grid gap-4 sm:grid-cols-4">
           <Skeleton className="h-24" />
@@ -470,7 +470,7 @@ const PaymentsCollections = () => {
   }
 
   return (
-    <div className="container px-3 py-4 lg:px-5 space-y-4">
+    <div className="p-2 lg:p-3 space-y-2">
       <PageHeader 
         title="Payments & Collections" 
         description="Central hub for all financial transactions and cash handling"

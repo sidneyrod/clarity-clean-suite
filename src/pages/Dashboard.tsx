@@ -344,7 +344,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="container px-3 lg:px-4 py-3 space-y-3">
+    <div className="p-2 lg:p-3 space-y-2">
       {/* Welcome Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div className="space-y-0">
