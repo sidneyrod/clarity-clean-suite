@@ -2,7 +2,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Moon,
   Sun,
@@ -296,12 +296,30 @@ const TopBar = () => {
     }
   };
 
+  // Measure right actions width for proportional centering
+  const rightActionsRef = useRef<HTMLDivElement>(null);
+  const [rightActionsWidth, setRightActionsWidth] = useState(0);
+
+  useEffect(() => {
+    const updateWidth = () => {
+      if (rightActionsRef.current) {
+        setRightActionsWidth(rightActionsRef.current.offsetWidth);
+      }
+    };
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    return () => window.removeEventListener('resize', updateWidth);
+  }, []);
+
   return (
     <header className="sticky top-0 z-50 w-full h-14 bg-card border-b border-border" style={{ boxShadow: 'var(--shadow-header)' }}>
-      <div className="relative flex h-full items-center px-4 lg:px-6">
-        {/* Center: Search (centered within the content area; automatically adapts to sidebar collapse) */}
-        <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-y-1/2 -translate-x-1/2 w-full max-w-md px-4">
-          <div className="relative w-full">
+      <div className="flex h-full items-center px-4 lg:px-6">
+        {/* Left spacer - matches the width of the right actions for proportional centering */}
+        <div className="hidden md:block shrink-0" style={{ width: rightActionsWidth }} />
+
+        {/* Center: Search */}
+        <div className="hidden md:flex flex-1 justify-center">
+          <div className="relative w-full max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
               type="text"
@@ -406,7 +424,7 @@ const TopBar = () => {
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-2 ml-auto">
+        <div ref={rightActionsRef} className="flex items-center gap-2 shrink-0">
           {/* Download Button */}
           <Tooltip>
             <TooltipTrigger asChild>
