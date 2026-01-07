@@ -148,11 +148,10 @@ export function PeriodSelector({ value, onChange, className }: PeriodSelectorPro
         </PopoverTrigger>
         <PopoverContent 
           className={cn(
-            "p-0 max-h-[80vh] overflow-y-auto",
+            "p-0 overflow-hidden max-h-[var(--radix-popover-content-available-height)]",
             showCustomCalendar ? "w-auto" : "w-48"
           )} 
           align="start"
-          side="bottom"
           sideOffset={4}
           avoidCollisions={true}
           collisionPadding={16}
@@ -183,7 +182,24 @@ export function PeriodSelector({ value, onChange, className }: PeriodSelectorPro
           ) : (
             // Custom Date Range Picker
             <div className="flex flex-col">
-              <div className="p-4 max-h-[60vh] overflow-y-auto">
+              <div className="flex items-center justify-end gap-2 p-3 border-b bg-background sticky top-0 z-10">
+                <Button
+                  variant="outline"
+                  onClick={handleCustomCancel}
+                  className="h-8 px-3"
+                >
+                  {labels.cancel}
+                </Button>
+                <Button
+                  onClick={handleCustomApply}
+                  className="h-8 px-3"
+                  disabled={!customStart || !customEnd}
+                >
+                  {labels.apply}
+                </Button>
+              </div>
+
+              <div className="p-4 overflow-y-auto max-h-[calc(var(--radix-popover-content-available-height)-52px)]">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">{labels.from}</label>
@@ -205,22 +221,6 @@ export function PeriodSelector({ value, onChange, className }: PeriodSelectorPro
                     />
                   </div>
                 </div>
-              </div>
-              <div className="flex gap-2 p-4 border-t bg-background sticky bottom-0">
-                <Button 
-                  variant="outline"
-                  onClick={handleCustomCancel} 
-                  className="flex-1"
-                >
-                  {labels.cancel}
-                </Button>
-                <Button 
-                  onClick={handleCustomApply} 
-                  className="flex-1"
-                  disabled={!customStart || !customEnd}
-                >
-                  {labels.apply}
-                </Button>
               </div>
             </div>
           )}
