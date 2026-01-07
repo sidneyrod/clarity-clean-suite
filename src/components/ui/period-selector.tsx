@@ -148,11 +148,14 @@ export function PeriodSelector({ value, onChange, className }: PeriodSelectorPro
         </PopoverTrigger>
         <PopoverContent 
           className={cn(
-            "p-0",
+            "p-0 max-h-[80vh] overflow-y-auto",
             showCustomCalendar ? "w-auto" : "w-48"
           )} 
           align="start"
+          side="bottom"
           sideOffset={4}
+          avoidCollisions={true}
+          collisionPadding={16}
         >
           {!showCustomCalendar ? (
             // Preset Selection Menu
