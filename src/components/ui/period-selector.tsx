@@ -9,6 +9,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 export interface DateRange {
@@ -147,85 +153,71 @@ export function PeriodSelector({ value, onChange, className }: PeriodSelectorPro
           </Button>
         </PopoverTrigger>
         <PopoverContent 
-          className={cn(
-            "p-0 overflow-hidden max-h-[var(--radix-popover-content-available-height)]",
-            showCustomCalendar ? "w-auto" : "w-48"
-          )} 
+          className="p-0 w-48"
           align="start"
           sideOffset={4}
-          avoidCollisions={true}
-          collisionPadding={16}
         >
-          {!showCustomCalendar ? (
-            // Preset Selection Menu
-            <div className="py-1">
-              {presets.map((preset) => (
-                <React.Fragment key={preset.key}>
-                  <button
-                    className={cn(
-                      "w-full px-3 py-2 text-sm text-left hover:bg-muted flex items-center justify-between transition-colors",
-                      selectedPreset === preset.key && "bg-muted"
-                    )}
-                    onClick={() => handlePresetSelect(preset.key)}
-                  >
-                    <span>{preset.label}</span>
-                    {selectedPreset === preset.key && preset.key !== 'custom' && (
-                      <Check className="h-4 w-4 text-primary" />
-                    )}
-                  </button>
-                  {preset.dividerAfter && (
-                    <div className="h-px bg-border my-1" />
+          <div className="py-1">
+            {presets.map((preset) => (
+              <React.Fragment key={preset.key}>
+                <button
+                  className={cn(
+                    "w-full px-3 py-2 text-sm text-left hover:bg-muted flex items-center justify-between transition-colors",
+                    selectedPreset === preset.key && "bg-muted"
                   )}
-                </React.Fragment>
-              ))}
-            </div>
-          ) : (
-            // Custom Date Range Picker
-            <div className="flex flex-col">
-              <div className="flex items-center justify-end gap-2 p-3 border-b bg-background sticky top-0 z-10">
-                <Button
-                  variant="outline"
-                  onClick={handleCustomCancel}
-                  className="h-8 px-3"
+                  onClick={() => handlePresetSelect(preset.key)}
                 >
-                  {labels.cancel}
-                </Button>
-                <Button
-                  onClick={handleCustomApply}
-                  className="h-8 px-3"
-                  disabled={!customStart || !customEnd}
-                >
-                  {labels.apply}
-                </Button>
-              </div>
-
-              <div className="p-4 overflow-y-auto max-h-[calc(var(--radix-popover-content-available-height)-52px)]">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">{labels.from}</label>
-                    <Calendar
-                      mode="single"
-                      selected={customStart}
-                      onSelect={setCustomStart}
-                      className="p-0 pointer-events-auto"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">{labels.to}</label>
-                    <Calendar
-                      mode="single"
-                      selected={customEnd}
-                      onSelect={setCustomEnd}
-                      disabled={(date) => customStart ? date < customStart : false}
-                      className="p-0 pointer-events-auto"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+                  <span>{preset.label}</span>
+                  {selectedPreset === preset.key && preset.key !== 'custom' && (
+                    <Check className="h-4 w-4 text-primary" />
+                  )}
+                </button>
+                {preset.dividerAfter && (
+                  <div className="h-px bg-border my-1" />
+                )}
+              </React.Fragment>
+            ))}
+          </div>
         </PopoverContent>
       </Popover>
+
+      {/* Custom Range Dialog - centered on screen */}
+      <Dialog open={showCustomCalendar} onOpenChange={setShowCustomCalendar}>
+        <DialogContent className="max-w-fit">
+          <DialogHeader>
+            <DialogTitle>{labels.custom}</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-6 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{labels.from}</label>
+              <Calendar
+                mode="single"
+                selected={customStart}
+                onSelect={setCustomStart}
+                className="p-0 pointer-events-auto rounded-md border"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{labels.to}</label>
+              <Calendar
+                mode="single"
+                selected={customEnd}
+                onSelect={setCustomEnd}
+                disabled={(date) => customStart ? date < customStart : false}
+                className="p-0 pointer-events-auto rounded-md border"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={handleCustomCancel}>
+              {labels.cancel}
+            </Button>
+            <Button onClick={handleCustomApply} disabled={!customStart || !customEnd}>
+              {labels.apply}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Display current range inline */}
       {selectedPreset !== 'custom' && (
