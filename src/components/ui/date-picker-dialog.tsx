@@ -97,7 +97,9 @@ export function DatePickerDialog({
 
   const canApply = mode === 'single'
     ? !!(tempSelected as Date)
-    : !!((tempSelected as DateRange)?.from && (tempSelected as DateRange)?.to);
+    : !!((tempSelected as DateRange)?.from && 
+         (tempSelected as DateRange)?.to && 
+         (tempSelected as DateRange)!.from! <= (tempSelected as DateRange)!.to!);
 
   return (
     <>
@@ -139,10 +141,18 @@ export function DatePickerDialog({
                 <div className="space-y-2">
                   <label className="text-sm font-medium">{t.from}</label>
                   <Calendar
-                    mode="range"
-                    selected={tempSelected as DateRange | undefined}
-                    onSelect={(range) => setTempSelected(range)}
-                    disabled={disabled}
+                    mode="single"
+                    selected={(tempSelected as DateRange)?.from}
+                    onSelect={(date) => {
+                      const range = tempSelected as DateRange | undefined;
+                      setTempSelected({ from: date, to: range?.to } as DateRange);
+                    }}
+                    disabled={(date) => {
+                      if (disabled?.(date)) return true;
+                      const range = tempSelected as DateRange | undefined;
+                      if (range?.to && date > range.to) return true;
+                      return false;
+                    }}
                     numberOfMonths={1}
                     className="pointer-events-auto rounded-md border"
                   />
@@ -150,10 +160,18 @@ export function DatePickerDialog({
                 <div className="space-y-2">
                   <label className="text-sm font-medium">{t.to}</label>
                   <Calendar
-                    mode="range"
-                    selected={tempSelected as DateRange | undefined}
-                    onSelect={(range) => setTempSelected(range)}
-                    disabled={disabled}
+                    mode="single"
+                    selected={(tempSelected as DateRange)?.to}
+                    onSelect={(date) => {
+                      const range = tempSelected as DateRange | undefined;
+                      setTempSelected({ from: range?.from, to: date } as DateRange);
+                    }}
+                    disabled={(date) => {
+                      if (disabled?.(date)) return true;
+                      const range = tempSelected as DateRange | undefined;
+                      if (range?.from && date < range.from) return true;
+                      return false;
+                    }}
                     numberOfMonths={1}
                     defaultMonth={(tempSelected as DateRange)?.to || (tempSelected as DateRange)?.from || new Date()}
                     className="pointer-events-auto rounded-md border"
