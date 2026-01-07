@@ -194,6 +194,7 @@ export function PeriodSelector({ value, onChange, className }: PeriodSelectorPro
                 mode="single"
                 selected={customStart}
                 onSelect={setCustomStart}
+                disabled={(date) => customEnd ? date > customEnd : false}
                 className="p-0 pointer-events-auto rounded-md border"
               />
             </div>
@@ -212,7 +213,7 @@ export function PeriodSelector({ value, onChange, className }: PeriodSelectorPro
             <Button variant="outline" onClick={handleCustomCancel}>
               {labels.cancel}
             </Button>
-            <Button onClick={handleCustomApply} disabled={!customStart || !customEnd}>
+            <Button onClick={handleCustomApply} disabled={!customStart || !customEnd || customStart > customEnd}>
               {labels.apply}
             </Button>
           </div>
