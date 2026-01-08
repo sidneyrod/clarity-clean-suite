@@ -133,7 +133,7 @@ const Sidebar = () => {
   }
   
   if (isAdmin) {
-    financialItems.push({ path: '/payroll', label: t.nav.payroll, icon: Wallet });
+    financialItems.push({ path: '/payroll', label: 'Work & Earnings', icon: Wallet });
   }
   
   if (isCleaner) {
