@@ -83,9 +83,9 @@ const AccessRoles = () => {
   }, [fetchUsers, fetchPermissions]);
 
   return (
-    <div className="space-y-6 pt-4">
+    <div className="p-2 lg:p-3 space-y-4">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-xs grid-cols-2 mb-6">
+        <TabsList className="grid w-full max-w-xs grid-cols-2 mb-4">
           <TabsTrigger value="roles" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
             <span className="hidden sm:inline">Roles</span>

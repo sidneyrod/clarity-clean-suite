@@ -104,7 +104,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         const existingTab = tabs.find(tab => tab.id === id);
         
         if (existingTab) {
-          // Just activate the existing tab and update the path
+          // Activate the existing tab and update the path AND label
           set({
             userTabs: {
               ...userTabs,
@@ -112,6 +112,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
                 ...tab,
                 isActive: tab.id === id,
                 path: tab.id === id ? path : tab.path,
+                label: tab.id === id ? label : tab.label,
               })),
             },
             activeTabId: id,
