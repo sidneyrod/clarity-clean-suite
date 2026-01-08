@@ -6,7 +6,8 @@ import { supabase } from '@/lib/supabase';
 import { notifyInvoicePaid } from '@/hooks/useNotifications';
 import PageHeader from '@/components/ui/page-header';
 import SearchInput from '@/components/ui/search-input';
-import DataTable, { Column } from '@/components/ui/data-table';
+import { PaginatedDataTable, Column } from '@/components/ui/paginated-data-table';
+import { useServerPagination } from '@/hooks/useServerPagination';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,21 +21,18 @@ import {
   MoreHorizontal, 
   Eye, 
   Mail, 
-  MessageSquare, 
   Download, 
   CheckCircle,
   Clock,
   DollarSign,
-  QrCode,
   Printer,
   Loader2,
-  Calendar,
   XCircle,
   Trash2,
   RefreshCw,
   Lock
 } from 'lucide-react';
-import { format, parseISO, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { formatSafeDate, toSafeLocalDate } from '@/lib/dates';
 
@@ -74,16 +72,14 @@ const statusConfig: Record<InvoiceStatus, { color: string; bgColor: string; labe
 
 const Invoices = () => {
   const { t } = useLanguage();
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   
-  // Read URL params for filters
   const urlStatus = searchParams.get('status');
   const urlFrom = searchParams.get('from');
   const urlTo = searchParams.get('to');
   
-  // Initialize date range from URL params or default to this month
   const getInitialDateRange = (): DateRange => {
     if (urlFrom && urlTo) {
       try {
@@ -101,9 +97,8 @@ const Invoices = () => {
     };
   };
   
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>(urlStatus || 'all');
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -115,9 +110,16 @@ const Invoices = () => {
   const [showRegenerateModal, setShowRegenerateModal] = useState(false);
   const [actionInvoice, setActionInvoice] = useState<Invoice | null>(null);
   
-  const { hasRole } = useAuth();
   const isAdmin = hasRole(['admin']);
   
+  const [companyProfile, setCompanyProfile] = useState<any>(null);
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   // Update URL when date range changes
   const handleDateRangeChange = (newRange: DateRange) => {
     setDateRange(newRange);
@@ -126,118 +128,6 @@ const Invoices = () => {
     newParams.set('to', format(newRange.endDate, 'yyyy-MM-dd'));
     setSearchParams(newParams, { replace: true });
   };
-  
-  const [companyProfile, setCompanyProfile] = useState<any>(null);
-
-  // Fetch invoices from Supabase
-  const fetchInvoices = useCallback(async () => {
-    if (!user?.profile?.company_id) {
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-
-      const { data: invoicesData, error } = await supabase
-        .from('invoices')
-        .select(`
-          id,
-          invoice_number,
-          client_id,
-          job_id,
-          status,
-          subtotal,
-          tax_rate,
-          tax_amount,
-          total,
-          service_date,
-          service_duration,
-          due_date,
-          notes,
-          created_at,
-          paid_at,
-          clients (
-            id,
-            name,
-            email,
-            client_locations (address, city)
-          ),
-          profiles:cleaner_id (
-            first_name,
-            last_name
-          ),
-          client_locations:location_id (
-            address,
-            city
-          ),
-          invoice_items (
-            id,
-            description,
-            quantity,
-            unit_price,
-            total
-          )
-        `)
-        .eq('company_id', user.profile.company_id)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching invoices:', error);
-        toast({ title: 'Error', description: 'Failed to load invoices', variant: 'destructive' });
-        setIsLoading(false);
-        return;
-      }
-
-      const mappedInvoices: Invoice[] = (invoicesData || []).map((inv: any) => {
-        const cleaner = inv.profiles;
-        const cleanerName = cleaner 
-          ? `${cleaner.first_name || ''} ${cleaner.last_name || ''}`.trim() || 'Unassigned'
-          : 'Unassigned';
-        
-        const location = inv.client_locations;
-        const serviceAddress = location 
-          ? `${location.address || ''}${location.city ? `, ${location.city}` : ''}`
-          : 'N/A';
-
-        return {
-          id: inv.id,
-          invoiceNumber: inv.invoice_number,
-          clientId: inv.client_id,
-          clientName: inv.clients?.name || 'Unknown Client',
-          clientAddress: inv.clients?.client_locations?.[0]?.address || '',
-          clientEmail: inv.clients?.email,
-          serviceAddress,
-          serviceDate: inv.service_date || inv.created_at,
-          serviceDuration: inv.service_duration || '2h',
-          cleanerName,
-          subtotal: inv.subtotal || 0,
-          taxRate: inv.tax_rate || 13,
-          taxAmount: inv.tax_amount || 0,
-          total: inv.total || 0,
-          status: inv.status as InvoiceStatus,
-          createdAt: inv.created_at,
-          dueDate: inv.due_date || inv.created_at,
-          paidAt: inv.paid_at,
-          jobId: inv.job_id,
-          lineItems: (inv.invoice_items || []).map((item: any) => ({
-            id: item.id,
-            description: item.description,
-            quantity: item.quantity || 1,
-            unitPrice: item.unit_price,
-            total: item.total,
-          })),
-        };
-      });
-
-      setInvoices(mappedInvoices);
-    } catch (err) {
-      console.error('Error:', err);
-      toast({ title: 'Error', description: 'Failed to load invoices', variant: 'destructive' });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user?.profile?.company_id]);
 
   // Fetch company profile
   useEffect(() => {
@@ -266,46 +156,146 @@ const Invoices = () => {
     fetchCompanyProfile();
   }, [user?.profile?.company_id]);
 
-  useEffect(() => {
-    fetchInvoices();
-  }, [fetchInvoices]);
+  // Server-side pagination fetch function
+  const fetchInvoices = useCallback(async (from: number, to: number) => {
+    if (!user?.profile?.company_id) {
+      return { data: [], count: 0 };
+    }
 
-  const filteredInvoices = useMemo(() => {
-    return invoices.filter(invoice => {
-      const matchesSearch = 
-        invoice.invoiceNumber.toLowerCase().includes(search.toLowerCase()) ||
-        invoice.clientName.toLowerCase().includes(search.toLowerCase()) ||
-        invoice.cleanerName.toLowerCase().includes(search.toLowerCase());
+    const startDate = format(dateRange.startDate, 'yyyy-MM-dd');
+    const endDate = format(dateRange.endDate, 'yyyy-MM-dd');
+
+    let query = supabase
+      .from('invoices')
+      .select(`
+        id,
+        invoice_number,
+        client_id,
+        job_id,
+        status,
+        subtotal,
+        tax_rate,
+        tax_amount,
+        total,
+        service_date,
+        service_duration,
+        due_date,
+        notes,
+        created_at,
+        paid_at,
+        clients (
+          id,
+          name,
+          email,
+          client_locations (address, city)
+        ),
+        profiles:cleaner_id (
+          first_name,
+          last_name
+        ),
+        client_locations:location_id (
+          address,
+          city
+        ),
+        invoice_items (
+          id,
+          description,
+          quantity,
+          unit_price,
+          total
+        )
+      `, { count: 'exact' })
+      .eq('company_id', user.profile.company_id)
+      .gte('service_date', startDate)
+      .lte('service_date', endDate);
+
+    // Apply filters
+    if (statusFilter !== 'all') {
+      query = query.eq('status', statusFilter);
+    }
+    if (debouncedSearch) {
+      query = query.or(`invoice_number.ilike.%${debouncedSearch}%,clients.name.ilike.%${debouncedSearch}%`);
+    }
+
+    query = query
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    const { data: invoicesData, error, count } = await query;
+
+    if (error) {
+      console.error('Error fetching invoices:', error);
+      toast({ title: 'Error', description: 'Failed to load invoices', variant: 'destructive' });
+      return { data: [], count: 0 };
+    }
+
+    const mappedInvoices: Invoice[] = (invoicesData || []).map((inv: any) => {
+      const cleaner = inv.profiles;
+      const cleanerName = cleaner 
+        ? `${cleaner.first_name || ''} ${cleaner.last_name || ''}`.trim() || 'Unassigned'
+        : 'Unassigned';
       
-      // Status filter (from URL or dropdown)
-      const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
-      
-      // Date range filter - filter by service date
-      let matchesDateRange = true;
-      if (dateRange.startDate && dateRange.endDate && invoice.serviceDate) {
-        try {
-          const serviceDate = toSafeLocalDate(invoice.serviceDate);
-          matchesDateRange = isWithinInterval(serviceDate, { 
-            start: dateRange.startDate, 
-            end: dateRange.endDate 
-          });
-        } catch {
-          matchesDateRange = true;
-        }
-      }
-      
-      return matchesSearch && matchesStatus && matchesDateRange;
+      const location = inv.client_locations;
+      const serviceAddress = location 
+        ? `${location.address || ''}${location.city ? `, ${location.city}` : ''}`
+        : 'N/A';
+
+      return {
+        id: inv.id,
+        invoiceNumber: inv.invoice_number,
+        clientId: inv.client_id,
+        clientName: inv.clients?.name || 'Unknown Client',
+        clientAddress: inv.clients?.client_locations?.[0]?.address || '',
+        clientEmail: inv.clients?.email,
+        serviceAddress,
+        serviceDate: inv.service_date || inv.created_at,
+        serviceDuration: inv.service_duration || '2h',
+        cleanerName,
+        subtotal: inv.subtotal || 0,
+        taxRate: inv.tax_rate || 13,
+        taxAmount: inv.tax_amount || 0,
+        total: inv.total || 0,
+        status: inv.status as InvoiceStatus,
+        createdAt: inv.created_at,
+        dueDate: inv.due_date || inv.created_at,
+        paidAt: inv.paid_at,
+        jobId: inv.job_id,
+        lineItems: (inv.invoice_items || []).map((item: any) => ({
+          id: item.id,
+          description: item.description,
+          quantity: item.quantity || 1,
+          unitPrice: item.unit_price,
+          total: item.total,
+        })),
+      };
     });
-  }, [invoices, search, statusFilter, dateRange]);
 
+    return { data: mappedInvoices, count: count || 0 };
+  }, [user?.profile?.company_id, dateRange, statusFilter, debouncedSearch]);
+
+  const {
+    data: invoices,
+    isLoading,
+    pagination,
+    setPage,
+    setPageSize,
+    refresh,
+  } = useServerPagination<Invoice>(fetchInvoices, { pageSize: 25 });
+
+  // Refresh when filters change
+  useEffect(() => {
+    refresh();
+  }, [dateRange, statusFilter, debouncedSearch]);
+
+  // Stats based on visible invoices (simplified - for accurate totals use RPC)
   const stats = useMemo(() => {
-    const total = invoices.length;
+    const total = pagination.totalCount;
     const paid = invoices.filter(i => i.status === 'paid').length;
     const pending = invoices.filter(i => i.status === 'sent').length;
     const totalRevenue = invoices.filter(i => i.status === 'paid').reduce((acc, i) => acc + i.total, 0);
     const pendingAmount = invoices.filter(i => i.status === 'sent').reduce((acc, i) => acc + i.total, 0);
     return { total, paid, pending, totalRevenue, pendingAmount };
-  }, [invoices]);
+  }, [invoices, pagination.totalCount]);
 
   const handleMarkPaid = async (invoice: Invoice) => {
     const { error } = await supabase
@@ -318,11 +308,9 @@ const Invoices = () => {
       return;
     }
 
-    // Notify admin about the paid invoice
     await notifyInvoicePaid(invoice.invoiceNumber, invoice.clientName, invoice.total, invoice.id);
-
-    setInvoices(prev => prev.map(i => i.id === invoice.id ? { ...i, status: 'paid' } : i));
     toast({ title: 'Success', description: `Invoice ${invoice.invoiceNumber} marked as paid` });
+    refresh();
   };
 
   const handleSendEmail = async (invoice: Invoice) => {
@@ -336,8 +324,8 @@ const Invoices = () => {
       return;
     }
 
-    setInvoices(prev => prev.map(i => i.id === invoice.id ? { ...i, status: 'sent' } : i));
     toast({ title: 'Success', description: `Invoice ${invoice.invoiceNumber} sent via email` });
+    refresh();
   };
 
   const handlePreview = (invoice: Invoice) => {
@@ -428,7 +416,6 @@ const Invoices = () => {
                 </>
               )}
               
-              {/* Admin-only actions */}
               {isAdmin && (
                 <>
                   <DropdownMenuSeparator />
@@ -474,7 +461,7 @@ const Invoices = () => {
     },
   ];
 
-  if (isLoading) {
+  if (isLoading && invoices.length === 0) {
     return (
       <div className="p-2 lg:p-3 flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -498,12 +485,13 @@ const Invoices = () => {
                 <FileText className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Invoices</p>
-                <p className="text-2xl font-bold">{stats.total}</p>
+                <p className="text-xs text-muted-foreground">Total Invoices</p>
+                <p className="text-xl font-bold">{stats.total}</p>
               </div>
             </div>
           </CardContent>
         </Card>
+
         <Card className="border-border/50">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -511,12 +499,13 @@ const Invoices = () => {
                 <CheckCircle className="h-5 w-5 text-success" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Paid</p>
-                <p className="text-2xl font-bold">{stats.paid}</p>
+                <p className="text-xs text-muted-foreground">Paid</p>
+                <p className="text-xl font-bold">{stats.paid}</p>
               </div>
             </div>
           </CardContent>
         </Card>
+
         <Card className="border-border/50">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -524,21 +513,22 @@ const Invoices = () => {
                 <Clock className="h-5 w-5 text-warning" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Pending</p>
-                <p className="text-2xl font-bold">${stats.pendingAmount.toFixed(0)}</p>
+                <p className="text-xs text-muted-foreground">Pending</p>
+                <p className="text-xl font-bold">{stats.pending}</p>
               </div>
             </div>
           </CardContent>
         </Card>
+
         <Card className="border-border/50">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-info/10 flex items-center justify-center">
-                <DollarSign className="h-5 w-5 text-info" />
+              <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                <DollarSign className="h-5 w-5 text-emerald-500" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Revenue</p>
-                <p className="text-2xl font-bold">${stats.totalRevenue.toFixed(0)}</p>
+                <p className="text-xs text-muted-foreground">Revenue (Paid)</p>
+                <p className="text-xl font-bold">${stats.totalRevenue.toFixed(2)}</p>
               </div>
             </div>
           </CardContent>
@@ -546,16 +536,17 @@ const Invoices = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <SearchInput 
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchInput
           placeholder="Search invoices..."
           value={search}
           onChange={setSearch}
-          className="max-w-sm"
+          className="w-full sm:max-w-xs"
         />
+        
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="Filter by status" />
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
@@ -563,126 +554,92 @@ const Invoices = () => {
             <SelectItem value="sent">Sent</SelectItem>
             <SelectItem value="paid">Paid</SelectItem>
             <SelectItem value="overdue">Overdue</SelectItem>
+            <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>
         </Select>
-        <PeriodSelector 
-          value={dateRange}
-          onChange={handleDateRangeChange}
-        />
+
+        <PeriodSelector value={dateRange} onChange={handleDateRangeChange} />
       </div>
 
-      {/* Table */}
-      <DataTable 
+      {/* Data Table with Pagination */}
+      <PaginatedDataTable
         columns={columns}
-        data={filteredInvoices}
-        onRowClick={handlePreview}
-        emptyMessage="No invoices found. Invoices are generated when jobs are marked as completed."
+        data={invoices}
+        pagination={pagination}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+        isLoading={isLoading}
+        emptyMessage="No invoices found for the selected filters."
       />
 
-      {/* Invoice Preview Modal */}
+      {/* Invoice Preview Dialog */}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-primary" />
-              Invoice {selectedInvoice?.invoiceNumber}
-            </DialogTitle>
+            <DialogTitle>Invoice {selectedInvoice?.invoiceNumber}</DialogTitle>
           </DialogHeader>
           
           {selectedInvoice && (
-            <div className="space-y-6 mt-4">
-              <div className="flex justify-between items-start">
+            <div className="space-y-6 p-4 bg-card rounded-lg border">
+              {/* Company Header */}
+              <div className="border-b pb-4">
+                <h2 className="text-xl font-bold">{companyProfile?.companyName || 'Company Name'}</h2>
+                <p className="text-sm text-muted-foreground">{companyProfile?.address}</p>
+                <p className="text-sm text-muted-foreground">
+                  {companyProfile?.city}, {companyProfile?.province} {companyProfile?.postalCode}
+                </p>
+              </div>
+
+              {/* Invoice Details */}
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h3 className="text-lg font-semibold">{companyProfile?.companyName || 'Company'}</h3>
-                  <p className="text-sm text-muted-foreground">{companyProfile?.address}</p>
-                  <p className="text-sm text-muted-foreground">{companyProfile?.city}, {companyProfile?.province}</p>
-                  <p className="text-sm text-muted-foreground">{companyProfile?.phone}</p>
+                  <h3 className="font-semibold text-sm text-muted-foreground">Bill To</h3>
+                  <p className="font-medium">{selectedInvoice.clientName}</p>
+                  <p className="text-sm">{selectedInvoice.clientAddress}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-bold">{selectedInvoice.invoiceNumber}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Created: {format(new Date(selectedInvoice.createdAt), 'MMM d, yyyy')}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Due: {format(new Date(selectedInvoice.dueDate), 'MMM d, yyyy')}
-                  </p>
-                  <div className="mt-2">
-                    <span className={cn(
-                      'px-2.5 py-1 rounded-full text-xs font-medium',
-                      statusConfig[selectedInvoice.status].bgColor,
-                      statusConfig[selectedInvoice.status].color
-                    )}>
-                      {statusConfig[selectedInvoice.status].label}
-                    </span>
-                  </div>
+                  <p className="text-sm"><span className="text-muted-foreground">Invoice #:</span> {selectedInvoice.invoiceNumber}</p>
+                  <p className="text-sm"><span className="text-muted-foreground">Date:</span> {formatSafeDate(selectedInvoice.createdAt, 'MMM d, yyyy')}</p>
+                  <p className="text-sm"><span className="text-muted-foreground">Due:</span> {formatSafeDate(selectedInvoice.dueDate, 'MMM d, yyyy')}</p>
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Card className="border-border/50">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Bill To</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <p className="font-medium">{selectedInvoice.clientName}</p>
-                    <p className="text-sm text-muted-foreground">{selectedInvoice.clientAddress}</p>
-                    {selectedInvoice.clientEmail && (
-                      <p className="text-sm text-muted-foreground">{selectedInvoice.clientEmail}</p>
-                    )}
-                  </CardContent>
-                </Card>
-                <Card className="border-border/50">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Service Details</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <p className="font-medium">{selectedInvoice.serviceAddress}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Date: {format(new Date(selectedInvoice.serviceDate), 'MMM d, yyyy')}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Cleaner: {selectedInvoice.cleanerName}
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {selectedInvoice.lineItems.length > 0 && (
-                <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-muted/50">
-                      <tr>
-                        <th className="text-left p-3 text-sm font-medium">Description</th>
-                        <th className="text-right p-3 text-sm font-medium">Qty</th>
-                        <th className="text-right p-3 text-sm font-medium">Price</th>
-                        <th className="text-right p-3 text-sm font-medium">Total</th>
+              {/* Line Items */}
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-muted">
+                    <tr>
+                      <th className="text-left p-3 text-sm font-medium">Description</th>
+                      <th className="text-right p-3 text-sm font-medium">Qty</th>
+                      <th className="text-right p-3 text-sm font-medium">Rate</th>
+                      <th className="text-right p-3 text-sm font-medium">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedInvoice.lineItems.map((item) => (
+                      <tr key={item.id} className="border-t">
+                        <td className="p-3">{item.description}</td>
+                        <td className="text-right p-3">{item.quantity}</td>
+                        <td className="text-right p-3">${item.unitPrice.toFixed(2)}</td>
+                        <td className="text-right p-3">${item.total.toFixed(2)}</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {selectedInvoice.lineItems.map((item) => (
-                        <tr key={item.id} className="border-t">
-                          <td className="p-3 text-sm">{item.description}</td>
-                          <td className="p-3 text-sm text-right">{item.quantity}</td>
-                          <td className="p-3 text-sm text-right">${item.unitPrice.toFixed(2)}</td>
-                          <td className="p-3 text-sm text-right font-medium">${item.total.toFixed(2)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
+              {/* Totals */}
               <div className="flex justify-end">
                 <div className="w-64 space-y-2">
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between">
                     <span className="text-muted-foreground">Subtotal</span>
                     <span>${selectedInvoice.subtotal.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between">
                     <span className="text-muted-foreground">Tax ({selectedInvoice.taxRate}%)</span>
                     <span>${selectedInvoice.taxAmount.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-lg font-bold border-t pt-2">
+                  <div className="flex justify-between border-t pt-2 font-bold">
                     <span>Total</span>
                     <span>${selectedInvoice.total.toFixed(2)}</span>
                   </div>
@@ -691,70 +648,42 @@ const Invoices = () => {
             </div>
           )}
 
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowPreview(false)}>
-              Close
+          <DialogFooter>
+            <Button variant="outline" onClick={() => window.print()}>
+              <Printer className="h-4 w-4 mr-2" />
+              Print
             </Button>
-            {selectedInvoice && (
-              <>
-                <Button variant="outline" onClick={() => handleSendEmail(selectedInvoice)}>
-                  <Mail className="h-4 w-4 mr-2" />
-                  Email
-                </Button>
-                {selectedInvoice.status !== 'paid' && (
-                  <Button onClick={() => { handleMarkPaid(selectedInvoice); setShowPreview(false); }}>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Mark Paid
-                  </Button>
-                )}
-              </>
-            )}
+            <Button variant="outline">
+              <Download className="h-4 w-4 mr-2" />
+              Download PDF
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Invoice Action Modals */}
-      <CancelInvoiceModal
-        open={showCancelModal}
-        onOpenChange={setShowCancelModal}
-        invoice={actionInvoice ? {
-          id: actionInvoice.id,
-          invoiceNumber: actionInvoice.invoiceNumber,
-          clientName: actionInvoice.clientName,
-          total: actionInvoice.total,
-          status: actionInvoice.status,
-          jobId: actionInvoice.jobId,
-        } : null}
-        onSuccess={fetchInvoices}
-      />
-
-      <DeleteInvoiceModal
-        open={showDeleteModal}
-        onOpenChange={setShowDeleteModal}
-        invoice={actionInvoice ? {
-          id: actionInvoice.id,
-          invoiceNumber: actionInvoice.invoiceNumber,
-          clientName: actionInvoice.clientName,
-          total: actionInvoice.total,
-          status: actionInvoice.status,
-          jobId: actionInvoice.jobId,
-        } : null}
-        onSuccess={fetchInvoices}
-      />
-
-      <RegenerateInvoiceModal
-        open={showRegenerateModal}
-        onOpenChange={setShowRegenerateModal}
-        invoice={actionInvoice ? {
-          id: actionInvoice.id,
-          invoiceNumber: actionInvoice.invoiceNumber,
-          clientName: actionInvoice.clientName,
-          total: actionInvoice.total,
-          status: actionInvoice.status,
-          jobId: actionInvoice.jobId,
-        } : null}
-        onSuccess={fetchInvoices}
-      />
+      {/* Action Modals */}
+      {actionInvoice && (
+        <>
+          <CancelInvoiceModal
+            open={showCancelModal}
+            onOpenChange={setShowCancelModal}
+            invoice={actionInvoice}
+            onSuccess={() => { setShowCancelModal(false); setActionInvoice(null); refresh(); }}
+          />
+          <DeleteInvoiceModal
+            open={showDeleteModal}
+            onOpenChange={setShowDeleteModal}
+            invoice={actionInvoice}
+            onSuccess={() => { setShowDeleteModal(false); setActionInvoice(null); refresh(); }}
+          />
+          <RegenerateInvoiceModal
+            open={showRegenerateModal}
+            onOpenChange={setShowRegenerateModal}
+            invoice={actionInvoice}
+            onSuccess={() => { setShowRegenerateModal(false); setActionInvoice(null); refresh(); }}
+          />
+        </>
+      )}
     </div>
   );
 };
