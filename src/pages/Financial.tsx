@@ -1,15 +1,14 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import PageHeader from '@/components/ui/page-header';
 import SearchInput from '@/components/ui/search-input';
-import DataTable, { Column } from '@/components/ui/data-table';
+import { PaginatedDataTable, Column } from '@/components/ui/paginated-data-table';
+import { useServerPagination } from '@/hooks/useServerPagination';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { toast } from '@/hooks/use-toast';
 import GenerateReportModal from '@/components/financial/GenerateReportModal';
@@ -21,23 +20,18 @@ import {
   Clock,
   Wallet,
   PieChart,
-  MoreHorizontal,
-  Eye,
   Download,
   FileSpreadsheet,
   FileText,
   Printer,
   Loader2,
-  Calendar as CalendarIcon,
-  Filter,
-  ArrowUpRight,
   ArrowDownRight,
   Minus,
-  FileBarChart
+  FileBarChart,
+  Eye
 } from 'lucide-react';
-import { format, parseISO, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isWithinInterval, subMonths, startOfDay, endOfDay } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { DateRange } from 'react-day-picker';
 
 // Types
 interface LedgerEntry {
@@ -110,10 +104,9 @@ const Financial = () => {
   const isAdmin = hasRole(['admin']);
   const isAdminOrManager = hasRole(['admin', 'manager']);
   
-  const [entries, setEntries] = useState<LedgerEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [search, setSearch] = useState('');
   const [showReportModal, setShowReportModal] = useState(false);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   
   // Filters
   const [eventTypeFilter, setEventTypeFilter] = useState<string>('all');
@@ -125,137 +118,141 @@ const Financial = () => {
     startDate: startOfMonth(new Date()),
     endDate: endOfMonth(new Date()),
   });
-  const [periodFilter, setPeriodFilter] = useState<string>('thisMonth');
   
   // Unique values for filters
   const [clients, setClients] = useState<{id: string; name: string}[]>([]);
   const [cleaners, setCleaners] = useState<{id: string; name: string}[]>([]);
-  
-  // Fetch ledger entries
-  const fetchLedgerEntries = useCallback(async () => {
-    if (!user?.profile?.company_id) {
-      setIsLoading(false);
-      return;
-    }
 
-    try {
-      setIsLoading(true);
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Fetch filter options
+  useEffect(() => {
+    const fetchFilterOptions = async () => {
+      if (!user?.profile?.company_id) return;
       
-      // Fetch from financial_ledger view
-      const { data, error } = await supabase
-        .from('financial_ledger')
-        .select('*')
-        .eq('company_id', user.profile.company_id)
-        .order('transaction_date', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching ledger:', error);
-        toast({ title: 'Error', description: 'Failed to load financial data', variant: 'destructive' });
-        setIsLoading(false);
-        return;
+      const [clientsRes, cleanersRes] = await Promise.all([
+        supabase
+          .from('clients')
+          .select('id, name')
+          .eq('company_id', user.profile.company_id)
+          .order('name'),
+        supabase
+          .from('profiles')
+          .select('id, first_name, last_name')
+          .eq('company_id', user.profile.company_id)
+          .order('first_name')
+      ]);
+      
+      if (clientsRes.data) {
+        setClients(clientsRes.data.map(c => ({ id: c.id, name: c.name })));
       }
-
-      const mappedEntries: LedgerEntry[] = (data || []).map((entry: any) => ({
-        id: entry.id,
-        companyId: entry.company_id,
-        clientId: entry.client_id,
-        cleanerId: entry.cleaner_id,
-        jobId: entry.job_id,
-        transactionDate: entry.transaction_date,
-        eventType: entry.event_type,
-        clientName: entry.client_name,
-        cleanerName: entry.cleaner_name,
-        serviceReference: entry.service_reference,
-        referenceNumber: entry.reference_number,
-        paymentMethod: entry.payment_method,
-        grossAmount: parseFloat(entry.gross_amount) || 0,
-        deductions: parseFloat(entry.deductions) || 0,
-        netAmount: parseFloat(entry.net_amount) || 0,
-        status: entry.status,
-        createdAt: entry.created_at,
-        notes: entry.notes,
-      }));
-
-      setEntries(mappedEntries);
-      
-      // Extract unique clients and cleaners
-      const uniqueClients = new Map<string, string>();
-      const uniqueCleaners = new Map<string, string>();
-      
-      mappedEntries.forEach(entry => {
-        if (entry.clientId && entry.clientName) {
-          uniqueClients.set(entry.clientId, entry.clientName);
-        }
-        if (entry.cleanerId && entry.cleanerName) {
-          uniqueCleaners.set(entry.cleanerId, entry.cleanerName);
-        }
-      });
-      
-      setClients(Array.from(uniqueClients, ([id, name]) => ({ id, name })));
-      setCleaners(Array.from(uniqueCleaners, ([id, name]) => ({ id, name })));
-    } catch (err) {
-      console.error('Error:', err);
-      toast({ title: 'Error', description: 'Failed to load financial data', variant: 'destructive' });
-    } finally {
-      setIsLoading(false);
-    }
+      if (cleanersRes.data) {
+        setCleaners(cleanersRes.data.map(c => ({ 
+          id: c.id, 
+          name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown'
+        })));
+      }
+    };
+    
+    fetchFilterOptions();
   }, [user?.profile?.company_id]);
 
+  // Server-side pagination fetch function
+  const fetchLedgerEntries = useCallback(async (from: number, to: number) => {
+    if (!user?.profile?.company_id) {
+      return { data: [], count: 0 };
+    }
+
+    const startDate = format(globalPeriod.startDate, 'yyyy-MM-dd');
+    const endDate = format(globalPeriod.endDate, 'yyyy-MM-dd');
+
+    let query = supabase
+      .from('financial_ledger')
+      .select('*', { count: 'exact' })
+      .eq('company_id', user.profile.company_id)
+      .gte('transaction_date', startDate)
+      .lte('transaction_date', endDate);
+
+    // Apply filters
+    if (eventTypeFilter !== 'all') {
+      query = query.eq('event_type', eventTypeFilter);
+    }
+    if (statusFilter !== 'all') {
+      query = query.eq('status', statusFilter);
+    }
+    if (paymentMethodFilter !== 'all') {
+      query = query.eq('payment_method', paymentMethodFilter);
+    }
+    if (clientFilter !== 'all') {
+      query = query.eq('client_id', clientFilter);
+    }
+    if (cleanerFilter !== 'all') {
+      query = query.eq('cleaner_id', cleanerFilter);
+    }
+    if (debouncedSearch) {
+      query = query.or(`client_name.ilike.%${debouncedSearch}%,cleaner_name.ilike.%${debouncedSearch}%,reference_number.ilike.%${debouncedSearch}%`);
+    }
+
+    query = query
+      .order('transaction_date', { ascending: false })
+      .range(from, to);
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      console.error('Error fetching ledger:', error);
+      toast({ title: 'Error', description: 'Failed to load financial data', variant: 'destructive' });
+      return { data: [], count: 0 };
+    }
+
+    const mappedEntries: LedgerEntry[] = (data || []).map((entry: any) => ({
+      id: entry.id,
+      companyId: entry.company_id,
+      clientId: entry.client_id,
+      cleanerId: entry.cleaner_id,
+      jobId: entry.job_id,
+      transactionDate: entry.transaction_date,
+      eventType: entry.event_type,
+      clientName: entry.client_name,
+      cleanerName: entry.cleaner_name,
+      serviceReference: entry.service_reference,
+      referenceNumber: entry.reference_number,
+      paymentMethod: entry.payment_method,
+      grossAmount: parseFloat(entry.gross_amount) || 0,
+      deductions: parseFloat(entry.deductions) || 0,
+      netAmount: parseFloat(entry.net_amount) || 0,
+      status: entry.status,
+      createdAt: entry.created_at,
+      notes: entry.notes,
+    }));
+
+    return { data: mappedEntries, count: count || 0 };
+  }, [user?.profile?.company_id, globalPeriod, eventTypeFilter, statusFilter, paymentMethodFilter, clientFilter, cleanerFilter, debouncedSearch]);
+
+  const {
+    data: entries,
+    isLoading,
+    pagination,
+    setPage,
+    setPageSize,
+    refresh,
+  } = useServerPagination<LedgerEntry>(fetchLedgerEntries, { pageSize: 25 });
+
+  // Refresh when filters change
   useEffect(() => {
-    fetchLedgerEntries();
-  }, [fetchLedgerEntries]);
+    refresh();
+  }, [globalPeriod, eventTypeFilter, statusFilter, paymentMethodFilter, clientFilter, cleanerFilter, debouncedSearch]);
 
-  // Period filter is now handled by PeriodSelector component
-
-  // Filtered entries
-  const filteredEntries = useMemo(() => {
-    return entries.filter(entry => {
-      // Search
-      const searchLower = search.toLowerCase();
-      const matchesSearch = 
-        (entry.clientName?.toLowerCase().includes(searchLower)) ||
-        (entry.cleanerName?.toLowerCase().includes(searchLower)) ||
-        (entry.referenceNumber?.toLowerCase().includes(searchLower)) ||
-        (entry.serviceReference?.toLowerCase().includes(searchLower));
-      
-      if (search && !matchesSearch) return false;
-      
-      // Event type filter
-      if (eventTypeFilter !== 'all' && entry.eventType !== eventTypeFilter) return false;
-      
-      // Status filter
-      if (statusFilter !== 'all' && entry.status !== statusFilter) return false;
-      
-      // Payment method filter
-      if (paymentMethodFilter !== 'all' && entry.paymentMethod !== paymentMethodFilter) return false;
-      
-      // Client filter
-      if (clientFilter !== 'all' && entry.clientId !== clientFilter) return false;
-      
-      // Cleaner filter
-      if (cleanerFilter !== 'all' && entry.cleanerId !== cleanerFilter) return false;
-      
-      // Date range filter - use globalPeriod
-      if (globalPeriod.startDate && globalPeriod.endDate && entry.transactionDate) {
-        try {
-          const entryDate = parseISO(entry.transactionDate);
-          if (!isWithinInterval(entryDate, { start: globalPeriod.startDate, end: globalPeriod.endDate })) {
-            return false;
-          }
-        } catch {
-          // Invalid date, include anyway
-        }
-      }
-      
-      return true;
-    });
-  }, [entries, search, eventTypeFilter, statusFilter, paymentMethodFilter, clientFilter, cleanerFilter, globalPeriod]);
-
-  // Calculate summary
+  // Calculate summary from current page data (for display purposes)
+  // Note: For accurate totals, we'd need a server-side RPC
   const summary = useMemo((): FinancialSummary => {
-    const invoices = filteredEntries.filter(e => e.eventType === 'invoice');
-    const payments = filteredEntries.filter(e => e.eventType === 'payment' || (e.eventType === 'invoice' && e.status === 'paid'));
-    const payroll = filteredEntries.filter(e => e.eventType === 'payroll');
+    const invoices = entries.filter(e => e.eventType === 'invoice');
+    const payments = entries.filter(e => e.eventType === 'payment' || (e.eventType === 'invoice' && e.status === 'paid'));
+    const payroll = entries.filter(e => e.eventType === 'payroll');
     const pending = invoices.filter(e => e.status !== 'paid' && e.status !== 'cancelled');
     
     const grossRevenue = invoices.reduce((sum, e) => sum + e.grossAmount, 0);
@@ -265,12 +262,12 @@ const Financial = () => {
     const netMargin = amountReceived - payrollCost;
     
     return { grossRevenue, amountReceived, outstandingBalance, payrollCost, netMargin };
-  }, [filteredEntries]);
+  }, [entries]);
 
   // Export functions
   const exportToCSV = () => {
     const headers = ['Date', 'Type', 'Client', 'Employee', 'Reference', 'Payment Method', 'Gross (CAD)', 'Deductions (CAD)', 'Net (CAD)', 'Status'];
-    const rows = filteredEntries.map(e => [
+    const rows = entries.map(e => [
       e.transactionDate,
       eventTypeConfig[e.eventType]?.label || e.eventType,
       e.clientName || '',
@@ -292,12 +289,6 @@ const Financial = () => {
     a.click();
     URL.revokeObjectURL(url);
     toast({ title: 'Success', description: 'CSV exported successfully' });
-  };
-
-  const exportToExcel = () => {
-    // For Excel, we'll export as CSV with .xlsx extension (basic compatibility)
-    // A more robust solution would use a library like xlsx
-    exportToCSV();
   };
 
   // Table columns
@@ -409,7 +400,7 @@ const Financial = () => {
     },
   ];
 
-  if (isLoading) {
+  if (isLoading && entries.length === 0) {
     return (
       <div className="p-2 lg:p-3 flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -445,10 +436,6 @@ const Financial = () => {
                     <FileSpreadsheet className="h-4 w-4 mr-2" />
                     Export CSV
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={exportToExcel}>
-                    <FileSpreadsheet className="h-4 w-4 mr-2" />
-                    Export Excel
-                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => window.print()}>
                     <Printer className="h-4 w-4 mr-2" />
@@ -470,13 +457,13 @@ const Financial = () => {
                 <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Gross Revenue</p>
-                <p className="text-xl font-bold tabular-nums">${summary.grossRevenue.toLocaleString('en-CA', { minimumFractionDigits: 2 })}</p>
+                <p className="text-xs text-muted-foreground">Gross Revenue</p>
+                <p className="text-xl font-bold tabular-nums">${summary.grossRevenue.toFixed(2)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="border-border/50 bg-gradient-to-br from-green-500/5 to-green-500/10">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -484,13 +471,13 @@ const Financial = () => {
                 <DollarSign className="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Received</p>
-                <p className="text-xl font-bold tabular-nums text-success">${summary.amountReceived.toLocaleString('en-CA', { minimumFractionDigits: 2 })}</p>
+                <p className="text-xs text-muted-foreground">Received</p>
+                <p className="text-xl font-bold tabular-nums">${summary.amountReceived.toFixed(2)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="border-border/50 bg-gradient-to-br from-amber-500/5 to-amber-500/10">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -498,51 +485,37 @@ const Financial = () => {
                 <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Outstanding</p>
-                <p className="text-xl font-bold tabular-nums text-warning">${summary.outstandingBalance.toLocaleString('en-CA', { minimumFractionDigits: 2 })}</p>
+                <p className="text-xs text-muted-foreground">Outstanding</p>
+                <p className="text-xl font-bold tabular-nums">${summary.outstandingBalance.toFixed(2)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        
-        <Card className="border-border/50 bg-gradient-to-br from-orange-500/5 to-orange-500/10">
+
+        <Card className="border-border/50 bg-gradient-to-br from-red-500/5 to-red-500/10">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-orange-500/20 flex items-center justify-center">
-                <Wallet className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+              <div className="h-10 w-10 rounded-lg bg-red-500/20 flex items-center justify-center">
+                <Wallet className="h-5 w-5 text-red-600 dark:text-red-400" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Payroll Cost</p>
-                <p className="text-xl font-bold tabular-nums">${summary.payrollCost.toLocaleString('en-CA', { minimumFractionDigits: 2 })}</p>
+                <p className="text-xs text-muted-foreground">Payroll Cost</p>
+                <p className="text-xl font-bold tabular-nums">${summary.payrollCost.toFixed(2)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        
-        <Card className={cn(
-          "border-border/50",
-          summary.netMargin >= 0 
-            ? "bg-gradient-to-br from-emerald-500/5 to-emerald-500/10" 
-            : "bg-gradient-to-br from-red-500/5 to-red-500/10"
-        )}>
+
+        <Card className="border-border/50 bg-gradient-to-br from-purple-500/5 to-purple-500/10">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className={cn(
-                "h-10 w-10 rounded-lg flex items-center justify-center",
-                summary.netMargin >= 0 ? "bg-emerald-500/20" : "bg-red-500/20"
-              )}>
-                <PieChart className={cn(
-                  "h-5 w-5",
-                  summary.netMargin >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
-                )} />
+              <div className="h-10 w-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                <PieChart className="h-5 w-5 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Net Margin</p>
-                <p className={cn(
-                  "text-xl font-bold tabular-nums",
-                  summary.netMargin >= 0 ? "text-success" : "text-destructive"
-                )}>
-                  {summary.netMargin >= 0 ? '+' : ''}${summary.netMargin.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+                <p className="text-xs text-muted-foreground">Net Margin</p>
+                <p className={cn('text-xl font-bold tabular-nums', summary.netMargin >= 0 ? 'text-success' : 'text-destructive')}>
+                  ${summary.netMargin.toFixed(2)}
                 </p>
               </div>
             </div>
@@ -559,8 +532,6 @@ const Financial = () => {
             onChange={setSearch}
             className="w-full sm:max-w-xs"
           />
-          
-          {/* Period filter is handled by PeriodSelector in header */}
           
           <Select value={eventTypeFilter} onValueChange={setEventTypeFilter}>
             <SelectTrigger className="w-[140px]">
@@ -641,20 +612,22 @@ const Financial = () => {
           {/* Results count */}
           <div className="flex items-center text-sm text-muted-foreground ml-auto">
             <BookOpen className="h-4 w-4 mr-2" />
-            {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}
+            {pagination.totalCount} {pagination.totalCount === 1 ? 'entry' : 'entries'}
           </div>
         </div>
       </div>
 
-      {/* Data Table */}
-      <div className="border rounded-lg overflow-hidden">
-        <DataTable 
-          columns={columns}
-          data={filteredEntries}
-          emptyMessage="No financial entries found for the selected filters."
-          className="[&_th]:bg-muted/50 [&_th]:font-semibold [&_td]:font-mono [&_td:nth-child(7)]:text-right [&_td:nth-child(8)]:text-right [&_td:nth-child(9)]:text-right"
-        />
-      </div>
+      {/* Data Table with Pagination */}
+      <PaginatedDataTable
+        columns={columns}
+        data={entries}
+        pagination={pagination}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+        isLoading={isLoading}
+        emptyMessage="No financial entries found for the selected filters."
+        className="[&_th]:bg-muted/50 [&_th]:font-semibold"
+      />
       
       {/* Footer with period info */}
       <div className="flex justify-between items-center text-sm text-muted-foreground">
