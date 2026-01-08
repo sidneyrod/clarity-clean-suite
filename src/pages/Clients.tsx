@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import PageHeader from '@/components/ui/page-header';
 import SearchInput from '@/components/ui/search-input';
-import DataTable, { Column } from '@/components/ui/data-table';
+import PaginatedDataTable, { Column } from '@/components/ui/paginated-data-table';
 import StatusBadge from '@/components/ui/status-badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -19,6 +19,7 @@ import ConfirmDialog from '@/components/modals/ConfirmDialog';
 import { toast } from '@/hooks/use-toast';
 import { UserPlus, Building, Home, MapPin, Phone, MoreHorizontal, Pencil, Trash2, Plus, Loader2, AlertTriangle } from 'lucide-react';
 import { useScheduleValidation } from '@/hooks/useScheduleValidation';
+import { useServerPagination, PaginationState } from '@/hooks/useServerPagination';
 
 interface Location {
   id: string;
@@ -60,9 +61,8 @@ const Clients = () => {
   const urlStatus = searchParams.get('status');
   
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>(urlStatus || 'all');
-  const [clients, setClients] = useState<Client[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editClient, setEditClient] = useState<Client | null>(null);
@@ -71,104 +71,104 @@ const Clients = () => {
   
   const { validateClientDuplicate, canDeleteClient } = useScheduleValidation();
 
-  // Fetch clients from Supabase
-  const fetchClients = useCallback(async () => {
+  // Debounce search for server-side filtering
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Server-side paginated fetch
+  const fetchClients = useCallback(async (from: number, to: number) => {
     if (!user?.profile?.company_id) {
-      setIsLoading(false);
-      return;
+      return { data: [], count: 0 };
     }
 
-    try {
-      setIsLoading(true);
-      
-      const { data: clientsData, error: clientsError } = await supabase
-        .from('clients')
-        .select(`
+    let query = supabase
+      .from('clients')
+      .select(`
+        id,
+        name,
+        email,
+        phone,
+        client_type,
+        notes,
+        address,
+        city,
+        province,
+        postal_code,
+        country,
+        client_locations (
           id,
-          name,
-          email,
-          phone,
-          client_type,
-          notes,
           address,
           city,
-          province,
-          postal_code,
-          country,
-          client_locations (
-            id,
-            address,
-            city,
-            access_instructions,
-            alarm_code,
-            has_pets,
-            pet_details,
-            parking_info
-          )
-        `)
-        .eq('company_id', user.profile.company_id);
+          access_instructions,
+          alarm_code,
+          has_pets,
+          pet_details,
+          parking_info
+        )
+      `, { count: 'exact' })
+      .eq('company_id', user.profile.company_id);
 
-      if (clientsError) {
-        console.error('Error fetching clients:', clientsError);
-        toast({ title: 'Error', description: 'Failed to load clients', variant: 'destructive' });
-        setIsLoading(false);
-        return;
-      }
-
-      console.log('Clients fetched:', clientsData);
-
-      const mappedClients: Client[] = (clientsData || []).map(client => ({
-        id: client.id,
-        name: client.name,
-        type: (client.client_type as 'residential' | 'commercial') || 'residential',
-        phone: client.phone || '',
-        email: client.email || '',
-        notes: client.notes || '',
-        status: 'active',
-        locationsCount: client.client_locations?.length || 0,
-        locations: (client.client_locations || []).map((loc: any) => ({
-          id: loc.id,
-          address: loc.address,
-          city: loc.city,
-          accessInstructions: loc.access_instructions,
-          alarmCode: loc.alarm_code,
-          hasPets: loc.has_pets,
-          petDetails: loc.pet_details,
-          parkingInfo: loc.parking_info,
-        })),
-        // Address fields
-        address: client.address || '',
-        city: client.city || '',
-        province: client.province || '',
-        postalCode: client.postal_code || '',
-        country: client.country || 'Canada',
-      }));
-
-      setClients(mappedClients);
-    } catch (err) {
-      console.error('Error:', err);
-      toast({ title: 'Error', description: 'Failed to load clients', variant: 'destructive' });
-    } finally {
-      setIsLoading(false);
+    // Server-side search
+    if (debouncedSearch) {
+      query = query.or(`name.ilike.%${debouncedSearch}%,email.ilike.%${debouncedSearch}%`);
     }
-  }, [user?.profile?.company_id]);
 
+    // Apply pagination and ordering
+    query = query
+      .order('name', { ascending: true })
+      .range(from, to);
+
+    const { data: clientsData, error: clientsError, count } = await query;
+
+    if (clientsError) {
+      console.error('Error fetching clients:', clientsError);
+      throw clientsError;
+    }
+
+    const mappedClients: Client[] = (clientsData || []).map((client: any) => ({
+      id: client.id,
+      name: client.name,
+      type: (client.client_type as 'residential' | 'commercial') || 'residential',
+      phone: client.phone || '',
+      email: client.email || '',
+      notes: client.notes || '',
+      status: 'active' as const,
+      locationsCount: client.client_locations?.length || 0,
+      locations: (client.client_locations || []).map((loc: any) => ({
+        id: loc.id,
+        address: loc.address,
+        city: loc.city,
+        accessInstructions: loc.access_instructions,
+        alarmCode: loc.alarm_code,
+        hasPets: loc.has_pets,
+        petDetails: loc.pet_details,
+        parkingInfo: loc.parking_info,
+      })),
+      address: client.address || '',
+      city: client.city || '',
+      province: client.province || '',
+      postalCode: client.postal_code || '',
+      country: client.country || 'Canada',
+    }));
+
+    return { data: mappedClients, count: count || 0 };
+  }, [user?.profile?.company_id, debouncedSearch]);
+
+  const {
+    data: clients,
+    isLoading,
+    pagination,
+    setPage,
+    setPageSize,
+    refresh,
+  } = useServerPagination<Client>(fetchClients, { pageSize: 25 });
+
+  // Refresh when search changes
   useEffect(() => {
-    fetchClients();
-  }, [fetchClients]);
-
-  const filteredClients = useMemo(() => {
-    return clients.filter(client => {
-      // Search filter
-      const matchesSearch = client.name.toLowerCase().includes(search.toLowerCase()) ||
-        client.email.toLowerCase().includes(search.toLowerCase());
-      
-      // Status filter from URL
-      const matchesStatus = statusFilter === 'all' || client.status === statusFilter;
-      
-      return matchesSearch && matchesStatus;
-    });
-  }, [clients, search, statusFilter]);
+    refresh();
+  }, [debouncedSearch]);
 
   const handleAddClient = async (clientData: ClientFormData) => {
     if (!user?.profile?.company_id) return;
@@ -235,7 +235,7 @@ const Clients = () => {
         toast({ title: t.common.success, description: 'Client created successfully' });
       }
 
-      fetchClients();
+      await refresh();
       setEditClient(null);
     } catch (err) {
       console.error('Error saving client:', err);
@@ -282,7 +282,7 @@ const Clients = () => {
 
       if (error) throw error;
 
-      setClients(prev => prev.filter(c => c.id !== deleteClient.id));
+      await refresh();
       toast({
         title: t.common.success,
         description: t.clients.clientDeleted,
@@ -408,9 +408,13 @@ const Clients = () => {
         className="max-w-sm"
       />
 
-      <DataTable 
+      <PaginatedDataTable 
         columns={columns}
-        data={filteredClients}
+        data={clients}
+        isLoading={isLoading}
+        pagination={pagination}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
         onRowClick={setSelectedClient}
         emptyMessage={t.common.noData}
       />

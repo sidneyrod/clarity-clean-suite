@@ -5,7 +5,7 @@ import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import PageHeader from '@/components/ui/page-header';
 import SearchInput from '@/components/ui/search-input';
-import DataTable, { Column } from '@/components/ui/data-table';
+import PaginatedDataTable, { Column } from '@/components/ui/paginated-data-table';
 import StatusBadge from '@/components/ui/status-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -19,6 +19,7 @@ import ConfirmDialog from '@/components/modals/ConfirmDialog';
 import { toast } from '@/hooks/use-toast';
 import { UserPlus, Briefcase, Clock, Star, Phone, Mail, MoreHorizontal, Pencil, Trash2, Loader2, Filter } from 'lucide-react';
 import { provinceNames } from '@/stores/payrollStore';
+import { useServerPagination, PaginationState } from '@/hooks/useServerPagination';
 
 interface User {
   id: string;
@@ -55,8 +56,7 @@ const Users = () => {
   const urlRoles = searchParams.get('roles');
   
   const [search, setSearch] = useState('');
-  const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
@@ -65,125 +65,129 @@ const Users = () => {
   const [isCheckingJobs, setIsCheckingJobs] = useState(false);
   const [roleFilter, setRoleFilter] = useState<string>(urlRoles ? 'filtered' : 'all');
   const [statusFilterFromUrl] = useState<string>(urlFilter || 'all');
+  const [roles, setRoles] = useState<{user_id: string; role: string}[]>([]);
 
-  // Fetch users from Supabase
-  const fetchUsers = useCallback(async () => {
-    if (!user?.profile?.company_id) {
-      setIsLoading(false);
-      return;
-    }
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-    try {
-      setIsLoading(true);
-      
-      // Fetch profiles with their roles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select(`
-          id,
-          first_name,
-          last_name,
-          email,
-          phone,
-          address,
-          city,
-          province,
-          country,
-          postal_code,
-          avatar_url,
-          hourly_rate,
-          salary,
-          primary_province,
-          employment_type
-        `)
-        .eq('company_id', user.profile.company_id);
-
-      if (profilesError) {
-        console.error('Error fetching profiles:', profilesError);
-        toast({ title: 'Error', description: 'Failed to load users', variant: 'destructive' });
-        setIsLoading(false);
-        return;
-      }
-
-      // Fetch user roles
-      const { data: roles, error: rolesError } = await supabase
+  // Fetch roles once
+  useEffect(() => {
+    const fetchRoles = async () => {
+      if (!user?.profile?.company_id) return;
+      const { data } = await supabase
         .from('user_roles')
         .select('user_id, role')
         .eq('company_id', user.profile.company_id);
-
-      if (rolesError) {
-        console.error('Error fetching roles:', rolesError);
-      }
-
-      // Map profiles with roles
-      const mappedUsers: User[] = (profiles || []).map(profile => {
-        const userRole = roles?.find(r => r.user_id === profile.id);
-        return {
-          id: profile.id,
-          name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unnamed User',
-          email: profile.email || '',
-          phone: profile.phone || '',
-          address: profile.address || '',
-          city: profile.city || '',
-          province_address: profile.province || '',
-          country: profile.country || 'Canada',
-          postalCode: profile.postal_code || '',
-          role: (userRole?.role as 'admin' | 'manager' | 'cleaner') || 'cleaner',
-          status: 'active',
-          avatar: profile.avatar_url || undefined,
-          hourlyRate: profile.hourly_rate || undefined,
-          salary: profile.salary || undefined,
-          province: profile.primary_province || 'ON',
-          employmentType: profile.employment_type || 'full-time',
-        };
-      });
-
-      setUsers(mappedUsers);
-    } catch (err) {
-      console.error('Error:', err);
-      toast({ title: 'Error', description: 'Failed to load users', variant: 'destructive' });
-    } finally {
-      setIsLoading(false);
-    }
+      setRoles(data || []);
+    };
+    fetchRoles();
   }, [user?.profile?.company_id]);
 
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
-
-  const filteredUsers = useMemo(() => {
-    let result = users;
-    
-    // Filter by search
-    if (search) {
-      result = result.filter(u =>
-        u.name.toLowerCase().includes(search.toLowerCase()) ||
-        u.email.toLowerCase().includes(search.toLowerCase())
-      );
+  // Server-side paginated fetch
+  const fetchUsers = useCallback(async (from: number, to: number) => {
+    if (!user?.profile?.company_id) {
+      return { data: [], count: 0 };
     }
+
+    let query = supabase
+      .from('profiles')
+      .select(`
+        id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        address,
+        city,
+        province,
+        country,
+        postal_code,
+        avatar_url,
+        hourly_rate,
+        salary,
+        primary_province,
+        employment_type
+      `, { count: 'exact' })
+      .eq('company_id', user.profile.company_id);
+
+    // Server-side search
+    if (debouncedSearch) {
+      query = query.or(`first_name.ilike.%${debouncedSearch}%,last_name.ilike.%${debouncedSearch}%,email.ilike.%${debouncedSearch}%`);
+    }
+
+    query = query
+      .order('first_name', { ascending: true })
+      .range(from, to);
+
+    const { data: profiles, error, count } = await query;
+
+    if (error) {
+      console.error('Error fetching profiles:', error);
+      throw error;
+    }
+
+    // Map profiles with roles
+    const mappedUsers: User[] = (profiles || []).map((profile: any) => {
+      const userRole = roles.find(r => r.user_id === profile.id);
+      return {
+        id: profile.id,
+        name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unnamed User',
+        email: profile.email || '',
+        phone: profile.phone || '',
+        address: profile.address || '',
+        city: profile.city || '',
+        province_address: profile.province || '',
+        country: profile.country || 'Canada',
+        postalCode: profile.postal_code || '',
+        role: (userRole?.role as 'admin' | 'manager' | 'cleaner') || 'cleaner',
+        status: 'active' as const,
+        avatar: profile.avatar_url || undefined,
+        hourlyRate: profile.hourly_rate || undefined,
+        salary: profile.salary || undefined,
+        province: profile.primary_province || 'ON',
+        employmentType: profile.employment_type || 'full-time',
+      };
+    });
+
+    // Client-side role filtering (since roles are in separate table)
+    let filteredUsers = mappedUsers;
     
-    // Filter by roles from URL (cleaner,manager)
     if (urlRoles) {
       const allowedRoles = urlRoles.split(',');
-      result = result.filter(u => allowedRoles.includes(u.role));
+      filteredUsers = filteredUsers.filter(u => allowedRoles.includes(u.role));
     }
     
-    // Filter by role dropdown
     if (roleFilter !== 'all' && roleFilter !== 'filtered') {
-      result = result.filter(u => u.role === roleFilter);
+      filteredUsers = filteredUsers.filter(u => u.role === roleFilter);
     }
     
-    // Filter by status from URL
     if (statusFilterFromUrl === 'active') {
-      result = result.filter(u => u.status === 'active');
+      filteredUsers = filteredUsers.filter(u => u.status === 'active');
     }
-    
-    return result;
-  }, [users, search, urlRoles, roleFilter, statusFilterFromUrl]);
+
+    return { data: filteredUsers, count: count || 0 };
+  }, [user?.profile?.company_id, debouncedSearch, roles, urlRoles, roleFilter, statusFilterFromUrl]);
+
+  const {
+    data: users,
+    isLoading,
+    pagination,
+    setPage,
+    setPageSize,
+    refresh,
+  } = useServerPagination<User>(fetchUsers, { pageSize: 25 });
+
+  // Refresh when filters change
+  useEffect(() => {
+    refresh();
+  }, [debouncedSearch, roleFilter, roles]);
 
   const handleAddUser = async (userData: UserFormData) => {
     // Refresh the list after modal handles creation/update
-    await fetchUsers();
+    await refresh();
     setEditUser(null);
     setIsAddModalOpen(false);
   };
@@ -256,8 +260,7 @@ const Users = () => {
         return;
       }
 
-      // Remove from local state
-      setUsers(prev => prev.filter(u => u.id !== deleteUser.id));
+      await refresh();
       
       toast({
         title: t.common.success,
@@ -391,9 +394,13 @@ const Users = () => {
         )}
       </div>
 
-      <DataTable 
+      <PaginatedDataTable 
         columns={columns}
-        data={filteredUsers}
+        data={users}
+        isLoading={isLoading}
+        pagination={pagination}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
         onRowClick={setSelectedUser}
         emptyMessage={t.common.noData}
       />
