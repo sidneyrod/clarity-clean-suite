@@ -16,7 +16,7 @@ import Clients from "./pages/Clients";
 import Contracts from "./pages/Contracts";
 import Schedule from "./pages/Schedule";
 import Calculator from "./pages/Calculator";
-import Payroll from "./pages/Payroll";
+import WorkEarningsSummary from "./pages/WorkEarningsSummary";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -193,7 +193,7 @@ const AppRoutes = () => {
         <Route path="/invoices" element={<AdminManagerRoute><Invoices /></AdminManagerRoute>} />
         <Route path="/completed-services" element={<AdminManagerRoute><CompletedServices /></AdminManagerRoute>} />
         <Route path="/calculator" element={<AdminManagerRoute><Calculator /></AdminManagerRoute>} />
-        <Route path="/payroll" element={<AdminRoute><Payroll /></AdminRoute>} />
+        <Route path="/payroll" element={<AdminRoute><WorkEarningsSummary /></AdminRoute>} />
         <Route path="/payments" element={<AdminManagerRoute><PaymentsCollections /></AdminManagerRoute>} />
         <Route path="/financial" element={<AdminManagerRoute><Financial /></AdminManagerRoute>} />
         <Route path="/receipts" element={<AdminManagerRoute><Receipts /></AdminManagerRoute>} />
