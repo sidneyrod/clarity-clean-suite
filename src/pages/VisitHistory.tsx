@@ -100,17 +100,17 @@ const VisitHistory = () => {
       
       if (clientsData) setClients(clientsData);
 
-      // Fetch employees (cleaners)
+      // Fetch employees (profiles with user_roles as cleaner)
       const { data: employeesData } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name')
+        .from('user_roles')
+        .select('user_id, profiles!inner(id, first_name, last_name)')
         .eq('company_id', companyId)
         .eq('role', 'cleaner');
       
       if (employeesData) {
-        setEmployees(employeesData.map(e => ({
-          id: e.id,
-          name: `${e.first_name || ''} ${e.last_name || ''}`.trim() || 'Unknown'
+        setEmployees(employeesData.map((e: any) => ({
+          id: e.profiles.id,
+          name: `${e.profiles.first_name || ''} ${e.profiles.last_name || ''}`.trim() || 'Unknown'
         })));
       }
     };
@@ -124,9 +124,16 @@ const VisitHistory = () => {
 
     let query = supabase
       .from('jobs')
-      .select('id, client_id, cleaner_id, location_id, scheduled_date, start_time, duration_minutes, status, job_type, visit_purpose, visit_route, notes, created_at, completed_at, clients(id, name, email, phone), client_locations(id, address, city)', { count: 'exact' })
-      .eq('company_id', companyId)
-      .eq('job_type', 'visit');
+      .select(`
+        id,
+        client_id,
+        cleaner_id,
+        location_id,
+        scheduled_date,
+        start_time,
+        duration_minutes,
+        status,
+        job_type,
         visit_purpose,
         visit_route,
         notes,
