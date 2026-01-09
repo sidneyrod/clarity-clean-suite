@@ -167,6 +167,72 @@ export function ExportReportButton({
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PDF HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+const A4_LANDSCAPE_WIDTH_MM = 297;
+const WORK_TIME_PDF_MARGIN_MM = 8;
+const WORK_TIME_PDF_CONTAINER_WIDTH_MM = A4_LANDSCAPE_WIDTH_MM - WORK_TIME_PDF_MARGIN_MM * 2;
+
+function safeFilenamePart(value: string): string {
+  const normalized = value
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  const safe = normalized
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .toLowerCase();
+
+  return safe || 'company';
+}
+
+function createWorkTimeTrackingPdfContainer(contentHtml: string): HTMLDivElement {
+  const container = document.createElement('div');
+  container.innerHTML = contentHtml;
+
+  // Fit within A4 landscape after margins to prevent right-side clipping.
+  container.style.width = `${WORK_TIME_PDF_CONTAINER_WIDTH_MM}mm`;
+  container.style.padding = '6mm';
+  container.style.boxSizing = 'border-box';
+
+  container.style.fontFamily = 'Segoe UI, system-ui, sans-serif';
+  container.style.fontSize = '10px';
+  container.style.color = '#1a1a1a';
+  container.style.lineHeight = '1.4';
+  container.style.background = 'white';
+  container.style.overflow = 'visible';
+
+  return container;
+}
+
+function getWorkTimeTrackingPdfOptions({
+  filename,
+  windowWidth,
+}: {
+  filename: string;
+  windowWidth: number;
+}) {
+  return {
+    margin: [WORK_TIME_PDF_MARGIN_MM, WORK_TIME_PDF_MARGIN_MM, WORK_TIME_PDF_MARGIN_MM, WORK_TIME_PDF_MARGIN_MM] as [number, number, number, number],
+    filename,
+    image: { type: 'jpeg' as const, quality: 0.98 },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      windowWidth,
+      scrollX: 0,
+      scrollY: 0,
+    },
+    jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'landscape' as const },
+    pagebreak: { mode: ['css', 'legacy'], avoid: ['tr'] },
+  };
+}
+
 // Generate content HTML without full document structure (for html2pdf)
 function generatePdfContentHtml(
   data: any[],
