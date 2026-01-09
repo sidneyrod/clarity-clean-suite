@@ -79,16 +79,16 @@ export function useWorkEarnings() {
   const [isLoading, setIsLoading] = useState(true);
 
   const getCompanyId = useCallback(async () => {
-    if (!user) return null;
-    if (user.profile?.company_id) return user.profile.company_id;
-    
-    const { data } = await supabase
-      .from('profiles')
+    const userId = user?.id ?? null;
+    const profileCompanyId = user?.profile?.company_id ?? null;
+    if (!userId) return null;
+    if (profileCompanyId) return profileCompanyId;
+    const { data } = await supabase.from('profiles')
       .select('company_id')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single();
-    return data?.company_id;
-  }, [user]);
+    return data?.company_id ?? null;
+  }, [user?.id, user?.profile?.company_id]);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -430,10 +430,10 @@ export function useWorkEarnings() {
   }, [getCompanyId, period]);
 
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       fetchData();
     }
-  }, [user, fetchData]);
+  }, [user?.id, user?.profile?.company_id, fetchData]);
 
   return {
     period,
