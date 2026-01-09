@@ -250,6 +250,18 @@ function generateWorkTimeTrackingReportHtml(
           padding-top: 12px; 
           border-top: 1px solid #e5e7eb;
         }
+        .notes-section {
+          background: #f0f9ff;
+          border: 1px solid #0ea5e9;
+          border-radius: 4px;
+          padding: 10px;
+          font-size: 9px;
+          color: #0c4a6e;
+          margin-bottom: 12px;
+        }
+        .notes-section li {
+          margin-bottom: 6px;
+        }
         .disclaimer {
           background: #fef3c7;
           border: 1px solid #f59e0b;
@@ -321,6 +333,13 @@ function generateWorkTimeTrackingReportHtml(
       </table>
 
       <div class="footer">
+        <div class="notes-section">
+          <strong>Notes:</strong>
+          <ul style="margin: 8px 0 0 16px; padding: 0;">
+            <li><strong>Cash Kept by Cleaner:</strong> When a service is paid in cash, the cleaner may choose to retain the amount (to be deducted from their next payroll). This column only shows amounts that have been <u>explicitly approved by an Administrator</u>. Unapproved cash retentions are not included in this report.</li>
+            <li><strong>Cash Delivered to Office:</strong> Cash payments collected by the cleaner and physically delivered to the company office, confirmed by admin.</li>
+          </ul>
+        </div>
         <div class="disclaimer">
           <strong>Important Notice:</strong> This report is operational and financial only. 
           Payroll calculation and tax compliance must be handled externally by the accountant. 
