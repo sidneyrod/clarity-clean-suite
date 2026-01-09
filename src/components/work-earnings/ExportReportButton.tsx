@@ -4,13 +4,15 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Download, FileSpreadsheet, FileText, Loader2 } from 'lucide-react';
+import { Download, FileSpreadsheet, FileText, Printer, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { exportToCsv } from '@/utils/pdfGenerator';
 import { WorkEarningsPeriod, GlobalSummary } from '@/hooks/useWorkEarnings';
 import { useCompanyStore } from '@/stores/companyStore';
+import html2pdf from 'html2pdf.js';
 
 interface ExportReportButtonProps {
   period: WorkEarningsPeriod;
@@ -36,7 +38,6 @@ export function ExportReportButton({
         return;
       }
 
-      // Add header row with disclaimer
       const filename = `work-time-tracking-report-${period.startDate}-to-${period.endDate}`;
       exportToCsv(data, filename);
       
@@ -49,7 +50,7 @@ export function ExportReportButton({
     }
   };
 
-  const handleExportPdf = async () => {
+  const handleDownloadPdf = async () => {
     setIsExporting(true);
     try {
       const data = await getExportData();
@@ -59,7 +60,6 @@ export function ExportReportButton({
         return;
       }
 
-      // Generate PDF HTML
       const companyName = profile?.companyName || 'Company';
       const html = generateWorkTimeTrackingReportHtml(
         data,
@@ -68,7 +68,57 @@ export function ExportReportButton({
         companyName
       );
 
-      // Open in new window for print
+      // Create temporary container
+      const container = document.createElement('div');
+      container.innerHTML = html;
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      container.style.top = '0';
+      document.body.appendChild(container);
+
+      const element = container.querySelector('body > *') || container;
+
+      await html2pdf()
+        .set({
+          margin: [10, 10, 10, 10],
+          filename: `work-time-tracking-${period.startDate}-to-${period.endDate}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+        })
+        .from(element as HTMLElement)
+        .save();
+
+      // Cleanup
+      document.body.removeChild(container);
+
+      toast.success('PDF downloaded successfully');
+    } catch (error) {
+      console.error('PDF download error:', error);
+      toast.error('Failed to download PDF');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handlePrintPdf = async () => {
+    setIsExporting(true);
+    try {
+      const data = await getExportData();
+      
+      if (data.length === 0) {
+        toast.error('No data to export for the selected period');
+        return;
+      }
+
+      const companyName = profile?.companyName || 'Company';
+      const html = generateWorkTimeTrackingReportHtml(
+        data,
+        period,
+        globalSummary,
+        companyName
+      );
+
       const printWindow = window.open('', '_blank');
       if (printWindow) {
         printWindow.document.write(html);
@@ -77,10 +127,10 @@ export function ExportReportButton({
         setTimeout(() => printWindow.print(), 500);
       }
 
-      toast.success('Report generated - use Print dialog to save as PDF');
+      toast.success('Report opened for printing');
     } catch (error) {
-      console.error('Export error:', error);
-      toast.error('Failed to generate report');
+      console.error('Print error:', error);
+      toast.error('Failed to generate print preview');
     } finally {
       setIsExporting(false);
     }
@@ -99,13 +149,18 @@ export function ExportReportButton({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={handleDownloadPdf}>
+          <FileText className="h-4 w-4 mr-2" />
+          Download PDF
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handlePrintPdf}>
+          <Printer className="h-4 w-4 mr-2" />
+          Print PDF
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleExportCsv}>
           <FileSpreadsheet className="h-4 w-4 mr-2" />
           Export as CSV
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleExportPdf}>
-          <FileText className="h-4 w-4 mr-2" />
-          Export as PDF
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -124,11 +179,11 @@ function generateWorkTimeTrackingReportHtml(
       <td>${row.Cleaner}</td>
       <td>${row.Client}</td>
       <td>${row['Job ID']}</td>
-      <td class="text-right">${row['Hours Worked']}</td>
-      <td class="text-right">${row['Gross Service Amount']}</td>
+      <td style="text-align: right;">${row['Hours Worked']}</td>
+      <td style="text-align: right;">${row['Gross Service Amount']}</td>
       <td>${row['Payment Method']}</td>
-      <td class="text-right">${row['Cash Kept by Cleaner']}</td>
-      <td class="text-right">${row['Cash Delivered to Office']}</td>
+      <td style="text-align: right;">${row['Cash Kept by Cleaner']}</td>
+      <td style="text-align: right;">${row['Cash Delivered to Office']}</td>
       <td>${row.Status}</td>
     </tr>
   `).join('');
@@ -137,14 +192,18 @@ function generateWorkTimeTrackingReportHtml(
     <!DOCTYPE html>
     <html>
     <head>
+      <meta charset="UTF-8">
       <title>Work & Time Tracking Report - ${period.startDate} to ${period.endDate}</title>
       <style>
-        @page { size: A4 landscape; margin: 1.5cm; }
+        * { box-sizing: border-box; }
         body { 
           font-family: 'Segoe UI', system-ui, sans-serif; 
           font-size: 10px; 
           color: #1a1a1a;
           line-height: 1.4;
+          margin: 0;
+          padding: 15px;
+          background: white;
         }
         .header { 
           display: flex; 
@@ -158,12 +217,12 @@ function generateWorkTimeTrackingReportHtml(
         .report-title { font-size: 14px; font-weight: 500; margin-top: 4px; }
         .period { font-size: 11px; color: #666; }
         .summary-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          display: flex;
           gap: 12px;
           margin-bottom: 20px;
         }
         .summary-card {
+          flex: 1;
           background: #f8f9fb;
           border: 1px solid #e5e7eb;
           border-radius: 6px;
@@ -186,7 +245,6 @@ function generateWorkTimeTrackingReportHtml(
           padding: 6px; 
           border-bottom: 1px solid #e5e7eb; 
         }
-        .text-right { text-align: right; }
         .footer { 
           margin-top: 24px; 
           padding-top: 12px; 
@@ -205,6 +263,10 @@ function generateWorkTimeTrackingReportHtml(
           color: #9ca3af;
           text-align: right;
           margin-top: 8px;
+        }
+        @media print {
+          @page { size: A4 landscape; margin: 1.5cm; }
+          body { padding: 0; }
         }
       </style>
     </head>
@@ -245,11 +307,11 @@ function generateWorkTimeTrackingReportHtml(
             <th>Cleaner</th>
             <th>Client</th>
             <th>Job ID</th>
-            <th class="text-right">Hours</th>
-            <th class="text-right">Amount</th>
+            <th style="text-align: right;">Hours</th>
+            <th style="text-align: right;">Amount</th>
             <th>Payment</th>
-            <th class="text-right">Cash Kept</th>
-            <th class="text-right">Cash Delivered</th>
+            <th style="text-align: right;">Cash Kept</th>
+            <th style="text-align: right;">Cash Delivered</th>
             <th>Status</th>
           </tr>
         </thead>
