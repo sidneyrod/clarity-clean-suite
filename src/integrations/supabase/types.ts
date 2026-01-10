@@ -707,6 +707,7 @@ export type Database = {
           archived_by: string | null
           business_number: string | null
           city: string | null
+          company_code: number
           created_at: string
           dedicated_connection_id: string | null
           email: string | null
@@ -728,6 +729,7 @@ export type Database = {
           archived_by?: string | null
           business_number?: string | null
           city?: string | null
+          company_code?: number
           created_at?: string
           dedicated_connection_id?: string | null
           email?: string | null
@@ -749,6 +751,7 @@ export type Database = {
           archived_by?: string | null
           business_number?: string | null
           city?: string | null
+          company_code?: number
           created_at?: string
           dedicated_connection_id?: string | null
           email?: string | null
@@ -2432,6 +2435,10 @@ export type Database = {
       }
     }
     Functions: {
+      check_company_can_delete: {
+        Args: { p_company_id: string }
+        Returns: Json
+      }
       create_default_chart_of_accounts: {
         Args: { p_company_id: string }
         Returns: undefined

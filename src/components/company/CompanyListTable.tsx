@@ -7,17 +7,15 @@ import {
   Building2, 
   Plus, 
   Pencil, 
-  Archive, 
-  RotateCcw,
+  Trash2,
   Search,
-  Copy,
-  Check,
   Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface CompanyListItem {
   id: string;
+  company_code: number;
   trade_name: string;
   legal_name: string;
   city: string | null;
@@ -25,7 +23,6 @@ export interface CompanyListItem {
   phone: string | null;
   status: string;
   created_at: string;
-  archived_at: string | null;
 }
 
 interface CompanyListTableProps {
@@ -34,8 +31,7 @@ interface CompanyListTableProps {
   isLoading: boolean;
   onSelectCompany: (companyId: string) => void;
   onEditCompany: (company: CompanyListItem) => void;
-  onArchiveCompany: (companyId: string) => void;
-  onRestoreCompany: (companyId: string) => void;
+  onDeleteCompany: (companyId: string) => void;
   onRegisterCompany: () => void;
 }
 
@@ -45,36 +41,22 @@ export default function CompanyListTable({
   isLoading,
   onSelectCompany,
   onEditCompany,
-  onArchiveCompany,
-  onRestoreCompany,
+  onDeleteCompany,
   onRegisterCompany
 }: CompanyListTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [showArchived, setShowArchived] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-
-  const handleCopyId = async (id: string) => {
-    try {
-      await navigator.clipboard.writeText(id);
-      setCopiedId(id);
-      setTimeout(() => setCopiedId(null), 2000);
-    } catch (error) {
-      console.error('Failed to copy ID:', error);
-    }
-  };
 
   const filteredCompanies = companies.filter(company => {
-    // Filter by search query
+    // Filter by search query - includes company_code
+    const codeStr = String(company.company_code).padStart(3, '0');
     const matchesSearch = 
+      codeStr.includes(searchQuery) ||
       company.trade_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       company.legal_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (company.email?.toLowerCase().includes(searchQuery.toLowerCase()) || false) ||
       (company.city?.toLowerCase().includes(searchQuery.toLowerCase()) || false);
 
-    // Filter by status
-    const matchesStatus = showArchived ? true : company.status !== 'archived';
-
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
 
   // Sort: active first, then by trade_name
@@ -109,20 +91,12 @@ export default function CompanyListTable({
             <div className="relative flex-1 sm:w-64">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search companies..."
+                placeholder="Search by code, name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-8 h-8 text-sm"
               />
             </div>
-            <Button
-              variant={showArchived ? "secondary" : "outline"}
-              size="sm"
-              className="h-8 text-xs whitespace-nowrap"
-              onClick={() => setShowArchived(!showArchived)}
-            >
-              {showArchived ? "Hide Archived" : "Show Archived"}
-            </Button>
             <Button 
               size="sm" 
               onClick={onRegisterCompany}
@@ -171,43 +145,24 @@ export default function CompanyListTable({
                   </td>
                 </tr>
               ) : (
-                sortedCompanies.map((company) => {
+              sortedCompanies.map((company) => {
                   const isActive = company.id === activeCompanyId;
-                  const isArchived = company.status === 'archived';
 
                   return (
                     <tr 
                       key={company.id} 
                       className={cn(
                         "hover:bg-muted/30 cursor-pointer transition-colors",
-                        isActive && "bg-primary/5 hover:bg-primary/10",
-                        isArchived && "opacity-60"
+                        isActive && "bg-primary/5 hover:bg-primary/10"
                       )}
-                      onClick={() => !isArchived && onSelectCompany(company.id)}
+                      onClick={() => onSelectCompany(company.id)}
                     >
                       <td className="px-4 py-3">
-                        <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
+                            #{String(company.company_code).padStart(3, '0')}
+                          </span>
                           <span className="text-sm font-medium">{company.trade_name}</span>
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <span className="text-[10px] text-muted-foreground font-mono">
-                              {company.id.slice(0, 8)}...
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-4 w-4 p-0"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCopyId(company.id);
-                              }}
-                            >
-                              {copiedId === company.id ? (
-                                <Check className="h-3 w-3 text-green-500" />
-                              ) : (
-                                <Copy className="h-3 w-3 text-muted-foreground" />
-                              )}
-                            </Button>
-                          </div>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">
@@ -225,13 +180,13 @@ export default function CompanyListTable({
                       </td>
                       <td className="px-4 py-3">
                         <Badge 
-                          variant={isActive ? "default" : isArchived ? "secondary" : "outline"}
+                          variant={isActive ? "default" : "outline"}
                           className={cn(
                             "text-[10px] uppercase tracking-wider",
                             isActive && "bg-primary"
                           )}
                         >
-                          {isActive ? "Active" : isArchived ? "Archived" : "Available"}
+                          {isActive ? "Active" : "Available"}
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -245,27 +200,15 @@ export default function CompanyListTable({
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
-                          {isArchived ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 text-green-600 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-950"
-                              onClick={() => onRestoreCompany(company.id)}
-                              title="Restore company"
-                            >
-                              <RotateCcw className="h-3.5 w-3.5" />
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 text-amber-600 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950"
-                              onClick={() => onArchiveCompany(company.id)}
-                              title="Archive company"
-                            >
-                              <Archive className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => onDeleteCompany(company.id)}
+                            title="Delete company"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -277,10 +220,7 @@ export default function CompanyListTable({
         </div>
         <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
           <span>
-            {sortedCompanies.length} {sortedCompanies.length === 1 ? 'company' : 'companies'} 
-            {showArchived && companies.filter(c => c.status === 'archived').length > 0 && 
-              ` (${companies.filter(c => c.status === 'archived').length} archived)`
-            }
+            {sortedCompanies.length} {sortedCompanies.length === 1 ? 'company' : 'companies'}
           </span>
         </div>
       </CardContent>
