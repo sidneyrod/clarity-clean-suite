@@ -174,21 +174,19 @@ const Company = () => {
     try {
       const { data, error } = await supabase
         .from('companies')
-        .select('id, trade_name, legal_name, city, email, phone, status, created_at, archived_at')
-        .order('status', { ascending: true })
-        .order('trade_name');
+        .select('id, company_code, trade_name, legal_name, city, email, phone, status, created_at')
+        .order('company_code', { ascending: true });
       
       if (error) throw error;
       
       if (data) {
-        setCompanies(data);
+        setCompanies(data as CompanyListItem[]);
         
         // Set initial active company if not set
         if (!activeCompanyId && data.length > 0) {
-          // Prefer user's profile company, or first active company
-          const userCompany = data.find(c => c.id === user?.profile?.company_id && c.status !== 'archived');
-          const firstActiveCompany = data.find(c => c.status !== 'archived');
-          const targetCompany = userCompany || firstActiveCompany || data[0];
+          // Prefer user's profile company, or first company
+          const userCompany = data.find(c => c.id === user?.profile?.company_id);
+          const targetCompany = userCompany || data[0];
           setActiveCompanyId(targetCompany.id);
         }
       }
@@ -484,81 +482,71 @@ const Company = () => {
     }
   };
 
-  // Handle archive company
-  const handleArchiveCompany = async (companyId: string) => {
-    if (!confirm('Are you sure you want to archive this company? It can be restored later.')) {
-      return;
-    }
-
+  // Handle delete company with validation
+  const handleDeleteCompany = async (companyId: string) => {
     try {
-      const { error } = await supabase
+      // First, check if company can be deleted via RPC
+      const { data: checkResult, error: checkError } = await supabase
+        .rpc('check_company_can_delete', { p_company_id: companyId });
+
+      if (checkError) {
+        console.error('Error checking company dependencies:', checkError);
+        toast({
+          title: 'Error',
+          description: 'Failed to verify if company can be deleted',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      const result = checkResult as { can_delete: boolean; reason: string | null; dependencies: Record<string, number> | null };
+
+      if (!result?.can_delete) {
+        const deps = result?.dependencies;
+        const depsList = deps ? Object.entries(deps)
+          .filter(([_, count]) => (count as number) > 0)
+          .map(([key, count]) => `${count} ${key.replace('_', ' ')}`)
+          .join(', ') : '';
+        
+        toast({
+          title: 'Cannot Delete Company',
+          description: `This company has associated data: ${depsList}. Remove all data first.`,
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Confirm deletion
+      if (!confirm('Are you sure you want to permanently delete this company? This action cannot be undone.')) {
+        return;
+      }
+
+      // Execute DELETE
+      const { error: deleteError } = await supabase
         .from('companies')
-        .update({
-          status: 'archived',
-          archived_at: new Date().toISOString(),
-          archived_by: user?.id
-        })
+        .delete()
         .eq('id', companyId);
 
-      if (error) throw error;
+      if (deleteError) throw deleteError;
 
       // Update local list
-      setCompanies(prev => prev.map(c => 
-        c.id === companyId 
-          ? { ...c, status: 'archived', archived_at: new Date().toISOString() }
-          : c
-      ));
+      setCompanies(prev => prev.filter(c => c.id !== companyId));
       
-      // If archived company was active, switch to another
+      // If deleted company was active, switch to another
       if (activeCompanyId === companyId) {
-        const otherCompany = companies.find(c => c.id !== companyId && c.status !== 'archived');
+        const otherCompany = companies.find(c => c.id !== companyId);
         setActiveCompanyId(otherCompany?.id || null);
       }
 
       toast({
         title: t.common.success,
-        description: 'Company archived successfully'
+        description: 'Company deleted successfully'
       });
     } catch (error) {
-      console.error('Error archiving company:', error);
+      console.error('Error deleting company:', error);
       toast({
         title: 'Error',
-        description: 'Failed to archive company',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  // Handle restore company
-  const handleRestoreCompany = async (companyId: string) => {
-    try {
-      const { error } = await supabase
-        .from('companies')
-        .update({
-          status: 'active',
-          archived_at: null,
-          archived_by: null
-        })
-        .eq('id', companyId);
-
-      if (error) throw error;
-
-      // Update local list
-      setCompanies(prev => prev.map(c => 
-        c.id === companyId 
-          ? { ...c, status: 'active', archived_at: null }
-          : c
-      ));
-
-      toast({
-        title: t.common.success,
-        description: 'Company restored successfully'
-      });
-    } catch (error) {
-      console.error('Error restoring company:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to restore company',
+        description: 'Failed to delete company. Make sure you have admin permissions.',
         variant: 'destructive'
       });
     }
@@ -964,8 +952,7 @@ const Company = () => {
             isLoading={isLoadingCompanies}
             onSelectCompany={handleSelectCompany}
             onEditCompany={handleOpenEditModal}
-            onArchiveCompany={handleArchiveCompany}
-            onRestoreCompany={handleRestoreCompany}
+            onDeleteCompany={handleDeleteCompany}
             onRegisterCompany={handleOpenRegisterModal}
           />
         </TabsContent>
