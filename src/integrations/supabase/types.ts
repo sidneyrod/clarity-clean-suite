@@ -2528,6 +2528,13 @@ export type Database = {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
         Returns: boolean
       }
+      has_role_in_company: {
+        Args: {
+          p_company_id: string
+          p_role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: boolean
+      }
       initialize_company_permissions: {
         Args: { p_company_id: string }
         Returns: undefined
