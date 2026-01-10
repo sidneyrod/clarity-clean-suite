@@ -33,6 +33,7 @@ import { CANADIAN_TIMEZONES } from '@/hooks/useTimezone';
 import PreferencesTab from '@/components/company/PreferencesTab';
 import CompanyListTable, { CompanyListItem } from '@/components/company/CompanyListTable';
 import EditCompanyModal, { CompanyFormData } from '@/components/company/EditCompanyModal';
+import ConfirmDialog from '@/components/modals/ConfirmDialog';
 
 interface CompanyBranding {
   id?: string;
@@ -130,6 +131,11 @@ const Company = () => {
   const [companyModalMode, setCompanyModalMode] = useState<'create' | 'edit'>('create');
   const [editingCompany, setEditingCompany] = useState<CompanyFormData | null>(null);
   const [isSubmittingCompany, setIsSubmittingCompany] = useState(false);
+
+  // Delete confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [companyToDelete, setCompanyToDelete] = useState<CompanyListItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Check if there are changes
   const checkForChanges = useCallback(() => {
@@ -482,9 +488,13 @@ const Company = () => {
     }
   };
 
-  // Handle delete company with validation
+  // Handle delete company with validation - opens confirmation dialog
   const handleDeleteCompany = async (companyId: string) => {
     try {
+      // Find company in list
+      const company = companies.find(c => c.id === companyId);
+      if (!company) return;
+
       // First, check if company can be deleted via RPC
       const { data: checkResult, error: checkError } = await supabase
         .rpc('check_company_can_delete', { p_company_id: companyId });
@@ -516,32 +526,47 @@ const Company = () => {
         return;
       }
 
-      // Confirm deletion
-      if (!confirm('Are you sure you want to permanently delete this company? This action cannot be undone.')) {
-        return;
-      }
+      // Company can be deleted - open confirmation dialog
+      setCompanyToDelete(company);
+      setDeleteDialogOpen(true);
+    } catch (error) {
+      console.error('Error checking company:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to check company status',
+        variant: 'destructive'
+      });
+    }
+  };
 
-      // Execute DELETE
+  // Actually performs the deletion after user confirms
+  const confirmDeleteCompany = async () => {
+    if (!companyToDelete) return;
+
+    setIsDeleting(true);
+    try {
       const { error: deleteError } = await supabase
         .from('companies')
         .delete()
-        .eq('id', companyId);
+        .eq('id', companyToDelete.id);
 
       if (deleteError) throw deleteError;
 
       // Update local list
-      setCompanies(prev => prev.filter(c => c.id !== companyId));
+      setCompanies(prev => prev.filter(c => c.id !== companyToDelete.id));
       
       // If deleted company was active, switch to another
-      if (activeCompanyId === companyId) {
-        const otherCompany = companies.find(c => c.id !== companyId);
+      if (activeCompanyId === companyToDelete.id) {
+        const otherCompany = companies.find(c => c.id !== companyToDelete.id);
         setActiveCompanyId(otherCompany?.id || null);
       }
 
       toast({
-        title: t.common.success,
-        description: 'Company deleted successfully'
+        title: 'Company Deleted',
+        description: `"${companyToDelete.trade_name}" has been permanently removed.`,
       });
+
+      setDeleteDialogOpen(false);
     } catch (error) {
       console.error('Error deleting company:', error);
       toast({
@@ -549,6 +574,9 @@ const Company = () => {
         description: 'Failed to delete company. Make sure you have admin permissions.',
         variant: 'destructive'
       });
+    } finally {
+      setIsDeleting(false);
+      setCompanyToDelete(null);
     }
   };
 
@@ -1368,6 +1396,21 @@ const Company = () => {
         isLoading={isSubmittingCompany}
         onSave={handleSaveCompany}
         mode={companyModalMode}
+      />
+
+      {/* Delete Company Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteDialogOpen(open);
+          if (!open) setCompanyToDelete(null);
+        }}
+        onConfirm={confirmDeleteCompany}
+        title={`Delete "${companyToDelete?.trade_name || 'Company'}"?`}
+        description={`This will permanently delete the company "${companyToDelete?.trade_name}" (Code #${String(companyToDelete?.company_code || 0).padStart(3, '0')}). This action cannot be undone.`}
+        confirmText={isDeleting ? 'Deleting...' : 'Delete Company'}
+        cancelText="Cancel"
+        variant="destructive"
       />
     </div>
   );
